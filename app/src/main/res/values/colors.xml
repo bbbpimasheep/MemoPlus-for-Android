@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="floral_white">#FFFFFAF0</color>
+    <color name="antique_white">#FFFAEBD7</color>
+    <color name="title">#FFFFC32E</color>
+    <color name="pressed_background">#BBFAEBD7</color>
+    <color name="default_background">#FFFFFAF0</color>
+    <color name="grey">#FF707070</color>
+    <color name="goldenrod">#FFEEE8AA</color>
+    <color name="tag">#FFCD6839</color>
+    <color name="wood">#DDCDAA7D</color>
+    <color name="light_grey">#FFD3D3D3</color>
+</resources>

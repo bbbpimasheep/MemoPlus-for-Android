@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@+id/item_background"
+        android:layout_width="match_parent"
+        android:layout_height="100.8dp"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="8dp"
+        android:textSize="24sp"
+        android:background="@drawable/item_background_selector"
+        app:layout_constraintTop_toTopOf="parent"/>
+
+    <TextView
+        android:id="@+id/memo_title"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:text="@string/new_memo_title"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="8dp"
+        android:textSize="24sp"
+        app:layout_constraintTop_toTopOf="parent"/>
+
+    <TextView
+        android:id="@+id/memo_abstract"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:text="@string/new_memo_abstract"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:textColor="@color/grey"
+        android:textSize="15sp"
+        app:layout_constraintTop_toBottomOf="@id/memo_title"/>
+
+    <ImageView
+        android:id="@+id/type_icon"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_alignParentEnd="true"
+        android:contextClickable="true"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp"
+        android:layout_marginStart="16dp"
+        android:src="@drawable/ic_tag_small"
+        app:layout_constraintBottom_toBottomOf="@id/edit_time"
+        app:layout_constraintStart_toStartOf="parent"
+        app:backgroundTint="@color/floral_white"/>
+
+    <TextView
+        android:id="@+id/type"
+        android:layout_width="144dp"
+        android:layout_height="18dp"
+        android:text="@string/default_type"
+        android:layout_marginBottom="16dp"
+        android:layout_marginStart="36dp"
+        android:gravity="start"
+        android:textColor="@color/grey"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="@id/edit_time"
+        app:layout_constraintStart_toStartOf="parent"/>
+
+    <TextView
+        android:id="@+id/edit_time"
+        android:layout_width="match_parent"
+        android:layout_height="22dp"
+        android:text="@string/new_memo_time"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingBottom="2dp"
+        android:gravity="bottom|end"
+        android:textColor="@color/grey"
+        android:textSize="9sp"
+        tools:ignore="SmallSp"
+        app:layout_constraintTop_toBottomOf="@id/memo_abstract"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <TextView
+        android:id="@+id/item_bottom_line"
+        android:layout_width="match_parent"
+        android:layout_height="0.8dp"
+        android:background="@color/goldenrod"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintTop_toBottomOf="@id/edit_time"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
