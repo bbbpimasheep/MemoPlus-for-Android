@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -21,6 +22,16 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.view.LayoutInflater;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
     TextView bottomSum;
     ImageButton homeButton;
     boolean login = false;
+
+    public static String uri_s = "http://localhost:8000/NotepadServer/register";
 
     @SuppressLint("SetTextI18n")
     @Override
@@ -49,9 +62,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Log.d(LOG_TAG, "Home button clicked!");
-                Intent intent;
+                Intent intent = new Intent(MainActivity.this, PersonalProfile.class);;
+                /*
                 if(login) intent = new Intent(MainActivity.this, PersonalProfile.class);
                 else intent = new Intent(MainActivity.this, Login.class);
+                */
                 startActivity(intent);
             }
         });
@@ -74,6 +89,39 @@ public class MainActivity extends AppCompatActivity {
         memoRecyclerView.setAdapter(adapter);
         LinearLayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
         memoRecyclerView.setLayoutManager(layoutManager);
+    }
+
+    public static String getCSRFToken() throws IOException {
+        URI uri = null;
+        try {
+            uri = new URI("http://localhost:8000/NotepadServer/get_csrf_token");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return null;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Accept", "application/json");
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                JSONObject jsonResponse = new JSONObject(response.toString());
+                String csrfToken = jsonResponse.getString("csrf_token");
+                System.out.println("CSRF Token: " + csrfToken);
+                return csrfToken;
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            throw new IOException("Failed to get CSRF token: HTTP error code : " + responseCode);
+        }
     }
 
     class MemoAdapter extends RecyclerView.Adapter<MemoAdapter.MemoViewHolder> {
