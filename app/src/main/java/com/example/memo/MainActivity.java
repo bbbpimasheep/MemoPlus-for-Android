@@ -26,6 +26,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -44,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
 
     public static String uri_s = "http://localhost:8000/NotepadServer/register";
 
-    @SuppressLint("SetTextI18n")
+    @SuppressLint({"SetTextI18n", "RestrictedApi"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,16 +58,27 @@ public class MainActivity extends AppCompatActivity {
         Intent getIntent = getIntent();
         this.login = getIntent.getBooleanExtra("login", false);
 
+        File imagesDir = new File(MainActivity.this.getFilesDir(), "memopics");
+        if (!imagesDir.exists()) {
+            // 创建文件夹
+            boolean isDirCreated = imagesDir.mkdir();
+            if (isDirCreated) {
+                Log.i("Directory", "Created Successfully");
+            } else {
+                Log.e("Directory", "Already Exists");
+            }
+        }
+
         homeButton.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("RestrictedApi")
             @Override
             public void onClick(View v) {
                 Log.d(LOG_TAG, "Home button clicked!");
-                Intent intent = new Intent(MainActivity.this, PersonalProfile.class);;
-                /*
+                // Intent intent = new Intent(MainActivity.this, PersonalProfile.class);;
+                Intent intent;
                 if(login) intent = new Intent(MainActivity.this, PersonalProfile.class);
                 else intent = new Intent(MainActivity.this, Login.class);
-                */
+
                 startActivity(intent);
             }
         });

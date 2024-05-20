@@ -35,23 +35,41 @@ public class Registration extends AppCompatActivity {
     // 保存 token 的变量
     static String token = null;
     Button registerButton;
-    EditText userid, password;
+    ImageButton back2login;
+    EditText username, password, confirm;
     CircularImageView icon;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login);
+        setContentView(R.layout.activity_register);
 
-        this.registerButton = findViewById(R.id.register_button);
-        this.userid = findViewById(R.id.enter_id);
+        this.username = findViewById(R.id.enter_name);
         this.password = findViewById(R.id.enter_password);
+        this.confirm = findViewById(R.id.enter_password_again);
+        this.back2login = findViewById(R.id.back_button);
+        this.registerButton = findViewById(R.id.register_button);
+
+        back2login.setOnClickListener(new View.OnClickListener() {
+            @SuppressLint("RestrictedApi")
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(Registration.this, Login.class);
+                startActivity(intent);
+            }
+        });
 
         registerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 try {
-                    sendPOST(userid.getText().toString(), password.getText().toString());
+                    String pwdText = password.getText().toString(), conText = confirm.getText().toString();
+                    if (pwdText.equals(conText)) {
+                        sendPOST(username.getText().toString(), password.getText().toString());
+                    } else {
+                        confirm.setError("Not match");
+                        confirm.requestFocus();
+                    }
                 } catch (IOException | JSONException e) {
                     throw new RuntimeException(e);
                 }
