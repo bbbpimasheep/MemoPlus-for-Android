@@ -37,6 +37,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+
+    @SuppressLint("StaticFieldLeak")
+    private static MainActivity instance;
+
+    // 单例模式获取MainActivity实例
+    public static MainActivity getInstance() {
+        return instance;
+    }
     RecyclerView memoRecyclerView;
     MemoAdapter adapter;
     TextView bottomSum;
@@ -57,17 +65,6 @@ public class MainActivity extends AppCompatActivity {
 
         Intent getIntent = getIntent();
         this.login = getIntent.getBooleanExtra("login", false);
-
-        File imagesDir = new File(MainActivity.this.getFilesDir(), "memopics");
-        if (!imagesDir.exists()) {
-            // 创建文件夹
-            boolean isDirCreated = imagesDir.mkdir();
-            if (isDirCreated) {
-                Log.i("Directory", "Created Successfully");
-            } else {
-                Log.e("Directory", "Already Exists");
-            }
-        }
 
         homeButton.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("RestrictedApi")
