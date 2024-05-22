@@ -41,6 +41,10 @@
             android:requestLegacyExternalStorage="true"
             android:parentActivityName=".MainActivity" />
         <activity
+            android:name=".Tags"
+            android:exported="false"
+            android:parentActivityName=".MemoContent" />
+        <activity
             android:name=".Login"
             android:exported="false"
             android:parentActivityName=".MainActivity" />

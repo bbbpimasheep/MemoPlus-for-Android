@@ -107,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void setAdapter() {
-        this.adapter = new MemoAdapter(MainActivity.this, MemoList);
+        this.adapter = new MemoAdapter(MainActivity.this, this.MemoList);
         memoRecyclerView.setAdapter(adapter);
         LinearLayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
         memoRecyclerView.setLayoutManager(layoutManager);
@@ -151,9 +151,9 @@ public class MainActivity extends AppCompatActivity {
         List<MemoItem> MemoList;
         Context context;
 
-        public MemoAdapter(Context context, List<MemoItem> memoItem) {
+        public MemoAdapter(Context context, List<MemoItem> memoItems) {
             this.inflater = LayoutInflater.from(context);
-            this.MemoList = memoItem;
+            this.MemoList = memoItems;
             this.context = context;
         }
         @NonNull

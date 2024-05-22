@@ -5,9 +5,11 @@
     android:orientation="vertical"
     android:padding="16dp">
 
-    <Button
+    <ImageButton
         android:id="@+id/play_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Play Audio" />
+        android:src="@drawable/ic_play"
+        android:layout_gravity="center"
+        android:backgroundTint="@color/floral_white"/>
 </LinearLayout>

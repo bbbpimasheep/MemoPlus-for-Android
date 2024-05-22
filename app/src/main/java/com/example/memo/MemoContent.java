@@ -46,16 +46,18 @@ import java.util.List;
 public class MemoContent extends AppCompatActivity{
     static final int SELECT_IMAGE_REQUEST = 1;
     static final int TAKE_PHOTO_REQUEST = 2;
+    static final int PICK_AUDIO_REQUEST = 3;
     static final int REQUEST_CAMERA_PERMISSION = 100;
-    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
-    ImageButton back2home, picture, audio, camera, recorder;
+    static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
+    ImageButton back2home, picture, audio, camera, recorder,
+                delete, save, settags;
     EditText title, time;
     MultiTypeAdapter adapter;
     List<RecyclerViewItem> items;
     File imagesDir, audioDir;
     boolean isRecording = false;
     MediaRecorder Mrecorder = null;
-    String audioPath;
+    String audioPath = null;
 
     @SuppressLint("SetTextI18n")
     @Override
@@ -63,11 +65,15 @@ public class MemoContent extends AppCompatActivity{
         super.onCreate(savedInstanceState);
         setContentView(R.layout.memo_content);
 
+        this.title = findViewById(R.id.memo_title);
         this.back2home = findViewById(R.id.back_button);
         this.picture = findViewById(R.id.picture_button);
+        this.audio = findViewById(R.id.audio_button);
         this.camera = findViewById(R.id.camera_button);
-        this.title = findViewById(R.id.memo_title);
         this.recorder = findViewById(R.id.microphone_button);
+        this.delete = findViewById(R.id.delete_memo_button);
+        this.save = findViewById(R.id.save_button);
+        this.settags = findViewById(R.id.set_tag_button);
 
         this.imagesDir = new File(MemoContent.this.getFilesDir(), "memopics");
         if (!imagesDir.exists()) {
@@ -91,11 +97,27 @@ public class MemoContent extends AppCompatActivity{
             }
         }
 
+        delete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // deleteMemo();
+                Intent intent = new Intent(MemoContent.this, MainActivity.class);
+                startActivity(intent);
+            }
+        });
+
+        save.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // saveMemo2Local();
+            }
+        });
+
         back2home.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("RestrictedApi")
             @Override
             public void onClick(View v) {
-                Log.d(LOG_TAG, "Back button clicked!");
+                Log.d("back", "Back button clicked!");
                 Intent intent = new Intent(MemoContent.this, MainActivity.class);
                 startActivity(intent);
             }
@@ -129,11 +151,28 @@ public class MemoContent extends AppCompatActivity{
             }
         });
 
+        audio.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openAudioFilePicker();
+            }
+        });
+
         recorder.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Log.d("recorder", "heard");
                 openRecorder();
+            }
+        });
+
+        settags.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MemoContent.this, Tags.class);
+                intent.putExtra("TITLE", title.getText().toString());
+                intent.putExtra("TIME", memoTime);
+                startActivity(intent);
             }
         });
 
@@ -170,7 +209,7 @@ public class MemoContent extends AppCompatActivity{
         if (ContextCompat.checkSelfPermission(MemoContent.this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
             Log.d("camera", "no permission");
-            ActivityCompat.requestPermissions(MemoContent.this, new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE},
+            ActivityCompat.requestPermissions(MemoContent.this, new String[]{Manifest.permission.CAMERA},
                     REQUEST_CAMERA_PERMISSION);
         } else {
             // Permission already granted, proceed with camera-related task
@@ -181,13 +220,14 @@ public class MemoContent extends AppCompatActivity{
     private void openRecorder() {
         if (isRecording) {
             stopRecording();
-            Uri uri = Uri.parse(audioPath);
-            addItem(new AudioItem(uri.toString()));
+            File audioFile = new File(audioPath);
+            Uri audioUri = Uri.fromFile(audioFile);
+            addItem(new AudioItem(audioUri));
             addItem(new TextItem("This is a text item"));
             recorder.setImageResource(R.drawable.ic_microphone);
         } else {
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-            this.audioPath = audioDir.getAbsolutePath() + "/" + title.getText().toString() + "-" + timeStamp + ".mp3";
+            this.audioPath = audioDir.getAbsolutePath() + "/" + title.getText().toString() + "-" + timeStamp + ".3gp";
             startRecording(audioPath);
             recorder.setImageResource(R.drawable.ic_microphone_on);
         }
@@ -198,7 +238,7 @@ public class MemoContent extends AppCompatActivity{
         if (ContextCompat.checkSelfPermission(MemoContent.this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
             Log.d("audio", "no permission");
-            ActivityCompat.requestPermissions(MemoContent.this, new String[]{Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE},
+            ActivityCompat.requestPermissions(MemoContent.this, new String[]{Manifest.permission.RECORD_AUDIO},
                     REQUEST_RECORD_AUDIO_PERMISSION);
         } else {
             // Permission already granted, proceed with camera-related task
@@ -231,6 +271,13 @@ public class MemoContent extends AppCompatActivity{
         Toast.makeText(this, "Recording stopped", Toast.LENGTH_SHORT).show();
     }
 
+    private void openAudioFilePicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.setType("audio/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        startActivityForResult(intent, PICK_AUDIO_REQUEST);
+    }
+
     @SuppressLint("NotifyDataSetChanged")
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -258,6 +305,11 @@ public class MemoContent extends AppCompatActivity{
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
+            } else if (requestCode == PICK_AUDIO_REQUEST) {
+                assert data != null;
+                Uri audioUri = data.getData();
+                addItem(new AudioItem(audioUri));
+                addItem(new TextItem("This is a text item"));
             }
         }
     }
@@ -325,14 +377,14 @@ public class MemoContent extends AppCompatActivity{
     }
 
     public static class AudioItem extends RecyclerViewItem {
-        private final String audioUri;
+        private final Uri audioUri;
 
-        public AudioItem(String audioUri) {
+        public AudioItem(Uri audioUri) {
             super(TYPE_AUDIO);
             this.audioUri = audioUri;
         }
 
-        public String getAudioUri() {
+        public Uri getAudioUri() {
             return audioUri;
         }
     }
@@ -387,7 +439,7 @@ public class MemoContent extends AppCompatActivity{
     }
 
     public static class AudioViewHolder extends RecyclerView.ViewHolder {
-        Button playButton;
+        ImageButton playButton;
         MediaPlayer mediaPlayer;
         boolean playing = false;
 
@@ -398,19 +450,42 @@ public class MemoContent extends AppCompatActivity{
         }
 
         public void bind(AudioItem audioItem) {
-            playButton.setOnClickListener(v -> {
-                try {
-                    if (!playing) {
-                        mediaPlayer.reset();
-                        mediaPlayer.setDataSource(audioItem.getAudioUri());
-                        mediaPlayer.prepare();
-                        mediaPlayer.start();
-                    } else {
-                        mediaPlayer.release();
+            playButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    try {
+                        if (!playing) {
+                            Log.d("audio", "play");
+                            mediaPlayer.setDataSource(audioItem.getAudioUri().toString());
+                            mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                                @Override
+                                public void onPrepared(MediaPlayer mp) {
+                                    mediaPlayer.start();
+                                }
+                            });
+                            mediaPlayer.setOnCompletionListener(mp -> {
+                                mediaPlayer.reset();
+                            });
+                            playing = !playing;
+                            Log.d("audio", String.valueOf(playing));
+                            playButton.setImageResource(R.drawable.ic_pause);
+                        } else {
+                            Log.d("audio", "pause");
+                            if (mediaPlayer != null) mediaPlayer.reset();
+                            playing = !playing;
+                            playButton.setImageResource(R.drawable.ic_play);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        Log.e("audioerror", "IOException during prepare or start: ", e);
+                        if (mediaPlayer != null) mediaPlayer.reset();
+                        playButton.setImageResource(R.drawable.ic_play);
+                    } catch (IllegalStateException e) {
+                        Log.e("audioerror", "IllegalStateException during prepare or start: ", e);
+                        if (mediaPlayer != null) mediaPlayer.reset();
+                        if (mediaPlayer != null) mediaPlayer.release();
+                        playButton.setImageResource(R.drawable.ic_play);
                     }
-                    playing = !playing;
-                } catch (IOException e) {
-                    e.printStackTrace();
                 }
             });
         }
@@ -468,4 +543,9 @@ public class MemoContent extends AppCompatActivity{
         }
     }
 
+    protected void onPause() {
+        super.onPause();
+        // 保存数据
+        // saveMemo2Cloud();
+    }
 }
