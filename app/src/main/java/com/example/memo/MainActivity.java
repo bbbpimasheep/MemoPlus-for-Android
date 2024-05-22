@@ -33,23 +33,18 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-
-    @SuppressLint("StaticFieldLeak")
-    private static MainActivity instance;
-
-    // 单例模式获取MainActivity实例
-    public static MainActivity getInstance() {
-        return instance;
-    }
     RecyclerView memoRecyclerView;
     MemoAdapter adapter;
     TextView bottomSum;
-    ImageButton homeButton;
+    ImageButton homeButton, addMemo;
     boolean login = false;
+    List<MemoItem> MemoList;
 
     public static String uri_s = "http://localhost:8000/NotepadServer/register";
 
@@ -62,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
         this.memoRecyclerView = findViewById(R.id.recycler_view);
         this.bottomSum = findViewById(R.id.bottom_bar);
         this.homeButton = findViewById(R.id.home_button);
+        this.addMemo = findViewById(R.id.add_memo_button);
 
         Intent getIntent = getIntent();
         this.login = getIntent.getBooleanExtra("login", false);
@@ -80,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        List<MemoItem> MemoList = new ArrayList<>();
+        this.MemoList = new ArrayList<>();
         MemoItem intro = new MemoItem();
         intro.title = "Intro: Start your own Memo+";
         intro.memo_abstract = "Try our new functions from the advancing AI...";
@@ -94,6 +90,23 @@ public class MainActivity extends AppCompatActivity {
             MemoList.add(item);
         }
         bottomSum.setText("Total: " + MemoList.size() + " memos");
+        setAdapter();
+
+        addMemo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                MemoItem item = new MemoItem();
+                item.title = "New Title";
+                item.memo_abstract = "Default abstract";
+                item.edit_time = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+                MemoList.add(item);
+                bottomSum.setText("Total: " + MemoList.size() + " memos");
+                setAdapter();
+            }
+        });
+    }
+
+    public void setAdapter() {
         this.adapter = new MemoAdapter(MainActivity.this, MemoList);
         memoRecyclerView.setAdapter(adapter);
         LinearLayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
