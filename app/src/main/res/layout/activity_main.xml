@@ -103,6 +103,19 @@
             android:textStyle="bold"/>
 
         <ImageButton
+            android:id="@+id/ai_button"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_alignParentStart="true"
+            android:gravity="center_vertical"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/ic_ai"
+            android:contextClickable="true"
+            app:backgroundTint="@color/antique_white"/>
+
+        <ImageButton
             android:id="@+id/add_memo_button"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"

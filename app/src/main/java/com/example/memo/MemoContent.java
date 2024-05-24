@@ -54,7 +54,7 @@ public class MemoContent extends AppCompatActivity{
     EditText title, time;
     MultiTypeAdapter adapter;
     List<RecyclerViewItem> items;
-    File imagesDir, audioDir;
+    File dir;
     boolean isRecording = false;
     MediaRecorder Mrecorder = null;
     String audioPath = null;
@@ -75,25 +75,21 @@ public class MemoContent extends AppCompatActivity{
         this.save = findViewById(R.id.save_button);
         this.settags = findViewById(R.id.set_tag_button);
 
-        this.imagesDir = new File(MemoContent.this.getFilesDir(), "memopics");
-        if (!imagesDir.exists()) {
+        Intent intent = getIntent();
+        String memoTitle = intent.getStringExtra("TITLE");
+        title.setText(memoTitle);
+        String memoTime = intent.getStringExtra("TIME");
+
+        assert memoTitle != null;
+        this.dir = new File(MemoContent.this.getFilesDir(), memoTitle);
+        Log.d("Files directory", MemoContent.this.getFilesDir().toString());
+        if (!dir.exists()) {
             // 创建文件夹
-            boolean isDirCreated = imagesDir.mkdir();
+            boolean isDirCreated = dir.mkdir();
             if (isDirCreated) {
                 Log.d("Directory", "Created Successfully");
             } else {
                 Log.d("Directory", "Already Exists");
-            }
-        }
-
-        this.audioDir = new File(MemoContent.this.getFilesDir(), "memovocs");
-        if (!audioDir.exists()) {
-            // 创建文件夹
-            boolean isDirCreated = audioDir.mkdir();
-            if (isDirCreated) {
-                Log.d("Audio Directory", "Created Successfully");
-            } else {
-                Log.d("Audio Directory", "Already Exists");
             }
         }
 
@@ -122,11 +118,6 @@ public class MemoContent extends AppCompatActivity{
                 startActivity(intent);
             }
         });
-
-        Intent intent = getIntent();
-        String memoTitle = intent.getStringExtra("TITLE");
-        title.setText(memoTitle);
-        String memoTime = intent.getStringExtra("TIME");
 
         RecyclerView recyclerView = findViewById(R.id.recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -227,7 +218,7 @@ public class MemoContent extends AppCompatActivity{
             recorder.setImageResource(R.drawable.ic_microphone);
         } else {
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-            this.audioPath = audioDir.getAbsolutePath() + "/" + title.getText().toString() + "-" + timeStamp + ".3gp";
+            this.audioPath = dir.getAbsolutePath() + "/" + "audio" + title.getText().toString() + "-" + timeStamp + ".3gp";
             startRecording(audioPath);
             recorder.setImageResource(R.drawable.ic_microphone_on);
         }
@@ -296,7 +287,7 @@ public class MemoContent extends AppCompatActivity{
                 Bitmap imageBitmap = (Bitmap) extras.get("data");
                 try {
                     assert imageBitmap != null;
-                    String path = imagesDir.getAbsolutePath();
+                    String path = dir.getAbsolutePath();
                     saveImageToStorage(imageBitmap, path);
                     Uri imageUri = Uri.fromFile(createImageFile(path));
                     Log.d("save", String.valueOf(imageUri));
@@ -547,5 +538,32 @@ public class MemoContent extends AppCompatActivity{
         super.onPause();
         // 保存数据
         // saveMemo2Cloud();
+        int text_count = 0;
+        for (RecyclerViewItem item : adapter.items) {
+            if (item.getType() == RecyclerViewItem.TYPE_TEXT) {
+                TextItem textItem = (TextItem) item;
+                String content = textItem.getText();
+                FileOutputStream fos = null;
+                try {
+                    File file = new File(this.dir, "text_" + text_count);
+                    // 获取应用的文件目录
+                    fos = new FileOutputStream(file);
+                    // 将字符串写入文件
+                    fos.write(content.getBytes());
+                    Log.d("Text saved", file.getAbsolutePath());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    if (fos != null) {
+                        try {
+                            fos.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+                text_count += 1;
+            }
+        }
     }
 }

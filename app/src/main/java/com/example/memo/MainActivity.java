@@ -42,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
     RecyclerView memoRecyclerView;
     MemoAdapter adapter;
     TextView bottomSum;
-    ImageButton homeButton, addMemo;
+    ImageButton homeButton, addMemo, aiButton;
     boolean login = false;
     List<MemoItem> MemoList;
 
@@ -58,9 +58,18 @@ public class MainActivity extends AppCompatActivity {
         this.bottomSum = findViewById(R.id.bottom_bar);
         this.homeButton = findViewById(R.id.home_button);
         this.addMemo = findViewById(R.id.add_memo_button);
+        this.aiButton = findViewById(R.id.ai_button);
 
         Intent getIntent = getIntent();
         this.login = getIntent.getBooleanExtra("login", false);
+
+        aiButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, Chat.class);;
+                startActivity(intent);
+            }
+        });
 
         homeButton.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("RestrictedApi")
