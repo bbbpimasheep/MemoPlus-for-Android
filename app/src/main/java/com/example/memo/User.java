@@ -1,27 +1,32 @@
 package com.example.memo;
 
 import androidx.annotation.NonNull;
+import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
-import androidx.room.Dao;
-import androidx.room.Delete;
-import androidx.room.Insert;
-import androidx.room.Query;
 
-import java.util.List;
-
-@Entity(tableName = "user_schema")
+@Entity(tableName = "users")
 public class User {
-    public String name;
     @PrimaryKey
+    @ColumnInfo(name = "userID")
     @NonNull
-    public String ID;
+    public String userID;
+
+    @ColumnInfo(name = "username")
+    public String username;
+
+    @ColumnInfo(name = "password")
     public String password;
+
+    @ColumnInfo(name = "signature")
     public String signature;
-    public String iconPath;
 
-    public User() {
-        ID = "furina_defontaine@gmail.com";
-    }
+    @ColumnInfo(name = "token")
+    public String token;
+
+    @ColumnInfo(name = "last_login")
+    public String last_login;
+
+    @ColumnInfo(name = "avatar")
+    public String avatar;
 }
-

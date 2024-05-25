@@ -2,6 +2,9 @@ package com.example.memo;
 
 import static androidx.core.content.PackageManagerCompat.LOG_TAG;
 
+import static com.example.memo.MainActivity.getCSRFToken;
+import static com.example.memo.MainActivity.uri_s;
+
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -15,6 +18,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -33,9 +37,10 @@ import org.json.JSONObject;
 
 public class Registration extends AppCompatActivity {
     // 保存 token 的变量
-    static String token = null;
+    static String token = null, userID;
     Button registerButton;
     ImageButton back2login;
+    TextView showID;
     EditText username, password, confirm;
     CircularImageView icon;
 
@@ -49,6 +54,7 @@ public class Registration extends AppCompatActivity {
         this.confirm = findViewById(R.id.enter_password_again);
         this.back2login = findViewById(R.id.back_button);
         this.registerButton = findViewById(R.id.register_button);
+        this.showID = findViewById(R.id.show_id);
 
         back2login.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("RestrictedApi")
@@ -60,12 +66,14 @@ public class Registration extends AppCompatActivity {
         });
 
         registerButton.setOnClickListener(new View.OnClickListener() {
+            @SuppressLint("SetTextI18n")
             @Override
             public void onClick(View v) {
                 try {
                     String pwdText = password.getText().toString(), conText = confirm.getText().toString();
                     if (pwdText.equals(conText)) {
-                        sendPOST(username.getText().toString(), password.getText().toString());
+                        sendPOST_register(username.getText().toString(), password.getText().toString());
+                        showID.setText("User ID: " + userID);
                     } else {
                         confirm.setError("Not match");
                         confirm.requestFocus();
@@ -76,10 +84,11 @@ public class Registration extends AppCompatActivity {
             }
         });
     }
-    public static void sendPOST(String ID, String password) throws IOException, JSONException {
+
+    public static void sendPOST_register(String username, String password) throws IOException, JSONException {
         URI uri = null;
         try {
-            uri = new URI("http://localhost:8000/NotepadServer/register");
+            uri = new URI( uri_s + "register");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -89,10 +98,13 @@ public class Registration extends AppCompatActivity {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
+
+        String csrfToken = getCSRFToken();
+        conn.setRequestProperty("X-CSRFToken", csrfToken);
+        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
 
-        String jsonInputString = String.format(
-                "{\"userID\": \"%s\", \"password\": \"%s\"}", ID, password);
+        String jsonInputString = "{\"username\": \"" + username + "\", \"password\": \"" + password + "\"}";
 
         try(OutputStream os = conn.getOutputStream()) {
             byte[] input = jsonInputString.getBytes("utf-8");
@@ -107,16 +119,12 @@ public class Registration extends AppCompatActivity {
                 while ((responseLine = br.readLine()) != null) {
                     response.append(responseLine.trim());
                 }
-                // 解析响应体，获取 token
                 JSONObject jsonResponse = new JSONObject(response.toString());
-                token = jsonResponse.getString("token");
-                System.out.println("Token: " + token);
+                userID = jsonResponse.getString("userID");
             }
         } else {
-            System.out.println("POST request not working");
+            System.out.println("POST request not worked");
         }
-
-        conn.disconnect();
     }
 
     public static void sendAvatar(ImageView avatar) throws IOException, JSONException {

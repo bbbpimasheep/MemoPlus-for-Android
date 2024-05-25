@@ -39,6 +39,7 @@ import java.util.Date;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+    AppDatabase db;
     RecyclerView memoRecyclerView;
     MemoAdapter adapter;
     TextView bottomSum;
@@ -46,13 +47,15 @@ public class MainActivity extends AppCompatActivity {
     boolean login = false;
     List<MemoItem> MemoList;
 
-    public static String uri_s = "http://localhost:8000/NotepadServer/register";
+    public static String uri_s = "http://android.xvlincaigou.online:8000/NotepadServer/";
 
     @SuppressLint({"SetTextI18n", "RestrictedApi"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        db = MemoPlus.getInstance().getAppDatabase();
 
         this.memoRecyclerView = findViewById(R.id.recycler_view);
         this.bottomSum = findViewById(R.id.bottom_bar);
@@ -122,10 +125,10 @@ public class MainActivity extends AppCompatActivity {
         memoRecyclerView.setLayoutManager(layoutManager);
     }
 
-    public static String getCSRFToken() throws IOException {
+    public static String getCSRFToken() throws IOException, JSONException {
         URI uri = null;
         try {
-            uri = new URI("http://localhost:8000/NotepadServer/get_csrf_token");
+            uri = new URI(uri_s + "get_csrf_token");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return null;
@@ -147,8 +150,6 @@ public class MainActivity extends AppCompatActivity {
                 String csrfToken = jsonResponse.getString("csrf_token");
                 System.out.println("CSRF Token: " + csrfToken);
                 return csrfToken;
-            } catch (JSONException e) {
-                throw new RuntimeException(e);
             }
         } else {
             throw new IOException("Failed to get CSRF token: HTTP error code : " + responseCode);

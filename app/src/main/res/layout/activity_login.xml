@@ -130,9 +130,9 @@
         android:textColor="@color/floral_white"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:layout_marginTop="400dp"
+        android:layout_marginBottom="160dp"
         android:backgroundTint="@color/wood"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
@@ -140,9 +140,9 @@
         android:id="@+id/register_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Click here and sign up"
+        android:text="New to Memo+? Click here to sign in"
         android:textColor="@color/grey"
-        android:textSize="16sp"
+        android:textSize="15sp"
         android:layout_marginTop="12dp"
         android:backgroundTint="@color/floral_white"
         app:layout_constraintTop_toBottomOf="@+id/login_button"

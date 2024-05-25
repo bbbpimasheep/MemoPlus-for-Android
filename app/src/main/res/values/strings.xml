@@ -27,7 +27,7 @@
     <string name="hint_search">Search</string>
     <string name="default_type">Default Type</string>
     <string name="set_id_hint">*your email address</string>
-    <string name="sign_up">Sign Up</string>
+    <string name="sign_in">Sign In</string>
     <string name="login_title">Login / Sign up</string>
     <string name="login">Login</string>
     <string name="sign_up_title">Sign up to Memo+</string>
