@@ -47,7 +47,7 @@ public class MainActivity extends AppCompatActivity {
     boolean login = false;
     List<MemoItem> MemoList;
 
-    public static String uri_s = "http://android.xvlincaigou.online:8000/NotepadServer/";
+    public static String uri_s = "http://android.xulincaigou.online:8000/NotepadServer/";
 
     @SuppressLint({"SetTextI18n", "RestrictedApi"})
     @Override
