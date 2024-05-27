@@ -10,9 +10,10 @@ import java.util.List;
 
 @Dao
 public interface UserDao {
-    /*
+
     @Query("SELECT * FROM users")
     List<User> getAllUsers();
+    /*
     @Query("SELECT * FROM users WHERE userid = :userId")
     User getUserById(int userId);
      */
@@ -22,5 +23,7 @@ public interface UserDao {
     void updateUser(User user);
     @Delete
     void deleteUser(User user);
+    @Query("SELECT token FROM users WHERE userid = :userId")
+    String getToken(String userId);
 }
 

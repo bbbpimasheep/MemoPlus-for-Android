@@ -19,6 +19,7 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import org.json.JSONObject;
 import org.json.JSONException;
@@ -34,11 +35,14 @@ import java.net.URISyntaxException;
 import java.net.URL;
 
 public class EditProfile extends AppCompatActivity {
+    private static AppDatabase db;
     static final int SELECT_IMAGE_REQUEST = 1;
     private static String authToken;
     ImageButton cancelButton, selectButton, setNameButton, setPwdButton, setSignButton, setAvatarButton;
-    EditText editName, editPwd, confirmPwd, editSign;
+    EditText editName, oldPwd, newPwd, editSign;
+    TextView IDView;
     CircularImageView iconView;
+    String userName, userID, password, signature;
     Parcelable iconUrl;
 
     @Override
@@ -52,12 +56,28 @@ public class EditProfile extends AppCompatActivity {
         this.setPwdButton = findViewById(R.id.setpwd_button);
         this.setSignButton = findViewById(R.id.setsign_button);
         this.setAvatarButton = findViewById(R.id.setavatar_button);
+        this.IDView = findViewById(R.id.user_id);
         this.editName = findViewById(R.id.name);
-        this.editPwd = findViewById(R.id.password);
-        this.confirmPwd = findViewById(R.id.confirm_password);
+        this.oldPwd = findViewById(R.id.old_password);
+        this.newPwd = findViewById(R.id.new_password);
         this.editSign = findViewById(R.id.signature);
 
-        authToken = getToken();
+        db = MemoPlus.getInstance().getAppDatabase();
+
+        new Thread(() -> {
+            authToken = db.userDao().getToken(userID);
+        }).start();
+
+        Intent intent = getIntent();
+        userName = intent.getStringExtra("name");
+        editName.setText(userName);
+        userID = intent.getStringExtra("ID");
+        IDView.setText(userID);
+        password = intent.getStringExtra("password");
+        oldPwd.setText(password);
+        signature = intent.getStringExtra("signature");
+        editSign.setText(signature);
+
 
         cancelButton.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("RestrictedApi")
@@ -73,7 +93,7 @@ public class EditProfile extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 try {
-                    changeUsername(editName.getText().toString());
+                    sendPOST_changeUsername(userID, editName.getText().toString());
                 } catch (IOException | JSONException e) {
                     throw new RuntimeException(e);
                 }
@@ -84,12 +104,12 @@ public class EditProfile extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 try {
-                    String password = editPwd.getText().toString(), confirm = confirmPwd.getText().toString();
-                    if (password.equals(confirm)) {
-                        changePassword(editPwd.getText().toString());
+                    String newPassword = newPwd.getText().toString();
+                    if (!password.equals(newPassword)) {
+                        sendPOST_changePassword(userID, password, newPassword);
                     } else {
-                        confirmPwd.setError("Not match");
-                        confirmPwd.requestFocus();
+                        newPwd.setError("Same!");
+                        newPwd.requestFocus();
                     }
                 } catch (IOException | JSONException e) {
                     throw new RuntimeException(e);
@@ -101,7 +121,7 @@ public class EditProfile extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 try {
-                    changePersonalSignature(editSign.getText().toString());
+                    sendPOST_changePersonalSignature(userID, editSign.getText().toString());
                 } catch (IOException | JSONException e) {
                     throw new RuntimeException(e);
                 }
@@ -120,50 +140,10 @@ public class EditProfile extends AppCompatActivity {
         });
     }
 
-    private void changeUsername(String name) throws IOException, JSONException {
+    public static void sendPOST_changeUsername(String userID, String newName) throws IOException, JSONException {
         URI uri = null;
         try {
-            uri = new URI(uri_s);
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-            return;
-        }
-        URL url = uri.toURL();
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Content-Type", "application/json; utf-8");
-        conn.setRequestProperty("Accept", "application/json");
-        conn.setDoOutput(true);
-
-        String jsonInputString = String.format("{\"username\": \"%s\"}", name);
-
-        try(OutputStream os = conn.getOutputStream()) {
-            byte[] input = jsonInputString.getBytes("utf-8");
-            os.write(input, 0, input.length);
-        }
-
-        int responseCode = conn.getResponseCode();
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
-                StringBuilder response = new StringBuilder();
-                String responseLine = null;
-                while ((responseLine = br.readLine()) != null) {
-                    response.append(responseLine.trim());
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            System.out.println("POST request not working");
-        }
-
-        conn.disconnect();
-    }
-
-    private void changePassword(String password) throws IOException, JSONException {
-        URI uri = null;
-        try {
-            uri = new URI(uri_s);
+            uri = new URI( uri_s + "register");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -178,14 +158,14 @@ public class EditProfile extends AppCompatActivity {
         conn.setRequestProperty("X-CSRFToken", csrfToken);
         conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
-        System.out.println(authToken);
         conn.setRequestProperty("Authorization", authToken);
 
-
-        String jsonInputString = String.format("{\"password\": \"%s\"}", password);
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        jsonInputString.put("newUsername", newName);
 
         try(OutputStream os = conn.getOutputStream()) {
-            byte[] input = jsonInputString.getBytes("utf-8");
+            byte[] input = jsonInputString.toString().getBytes("utf-8");
             os.write(input, 0, input.length);
         }
 
@@ -197,20 +177,24 @@ public class EditProfile extends AppCompatActivity {
                 while ((responseLine = br.readLine()) != null) {
                     response.append(responseLine.trim());
                 }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+                System.out.println(response.toString());
             }
         } else {
-            System.out.println("POST request not working");
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
         }
-
-        conn.disconnect();
     }
 
-    private void changePersonalSignature(String signature) throws IOException, JSONException {
+    public static void sendPOST_changePassword(String userID, String oldPassword, String newPassword) throws IOException, JSONException {
         URI uri = null;
         try {
-            uri = new URI(uri_s);
+            uri = new URI( uri_s + "register");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -220,12 +204,20 @@ public class EditProfile extends AppCompatActivity {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-        conn.setDoOutput(true);
 
-        String jsonInputString = String.format("{\"personalSignature\": \"%s\"}", signature);
+        String csrfToken = getCSRFToken();
+        conn.setRequestProperty("X-CSRFToken", csrfToken);
+        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
+
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        jsonInputString.put("oldPassword", oldPassword);
+        jsonInputString.put("newPassword", newPassword);
 
         try(OutputStream os = conn.getOutputStream()) {
-            byte[] input = jsonInputString.getBytes("utf-8");
+            byte[] input = jsonInputString.toString().getBytes("utf-8");
             os.write(input, 0, input.length);
         }
 
@@ -237,14 +229,69 @@ public class EditProfile extends AppCompatActivity {
                 while ((responseLine = br.readLine()) != null) {
                     response.append(responseLine.trim());
                 }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+                System.out.println(response.toString());
             }
         } else {
-            System.out.println("POST request not working");
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
+    }
+
+    public static void sendPOST_changePersonalSignature(String userID, String newSignature) throws IOException, JSONException {
+        URI uri = null;
+        try {
+            uri = new URI( uri_s + "register");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json; utf-8");
+        conn.setRequestProperty("Accept", "application/json");
+
+        String csrfToken = getCSRFToken();
+        conn.setRequestProperty("X-CSRFToken", csrfToken);
+        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
+
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        jsonInputString.put("PersonalSignature", newSignature);
+
+        try(OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
         }
 
-        conn.disconnect();
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println(response.toString());
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
     }
 
     public static void changeAvatar(ImageView avatar) throws IOException, JSONException {

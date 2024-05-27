@@ -29,8 +29,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 
 public class Login extends AppCompatActivity{
-    private AppDatabase db;
-    static String authToken, username;
+    private static AppDatabase db;
     ImageButton back2home;
     Button go2regist, login;
     EditText userID, password;
@@ -39,6 +38,8 @@ public class Login extends AppCompatActivity{
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        db = MemoPlus.getInstance().getAppDatabase();
 
         this.back2home = findViewById(R.id.back_button);
         this.go2regist = findViewById(R.id.register_button);
@@ -116,8 +117,8 @@ public class Login extends AppCompatActivity{
                     response.append(responseLine.trim());
                 }
                 JSONObject jsonResponse = new JSONObject(response.toString());
-                authToken = jsonResponse.getString("token");
-                username = jsonResponse.getString("username");
+                String authToken = jsonResponse.getString("token");
+                String username = jsonResponse.getString("username");
                 // 检查并获取personalSignature
                 String personalSignature;
                 if (jsonResponse.isNull("personalSignature")) {
@@ -133,6 +134,24 @@ public class Login extends AppCompatActivity{
                 } else {
                     noteList = jsonResponse.getJSONArray("noteList");
                 }
+
+                new Thread(() -> {
+                    User user = new User();
+                    user.username = username;
+                    user.userID = userID;
+                    user.password = password;
+                    user.signature = personalSignature;
+                    user.token = authToken;
+                    db.userDao().insertUser(user);
+
+
+                    /*
+                    List<Note> notes = db.noteDao().getAllNotes();
+                    for (Note n : notes) {
+                        System.out.println("Note: " + n.title + ", Content: " + n.content);
+                    }
+                    */
+                }).start();
 
                 System.out.println("Note List: " + noteList.toString());
                 System.out.println("Token: " + authToken);

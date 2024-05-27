@@ -31,13 +31,15 @@ import java.net.URL;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 public class Registration extends AppCompatActivity {
     // 保存 token 的变量
-    static String token = null, userID;
+    static String token = null, userID, csrfToken;
     Button registerButton;
     ImageButton back2login;
     TextView showID;
@@ -69,17 +71,24 @@ public class Registration extends AppCompatActivity {
             @SuppressLint("SetTextI18n")
             @Override
             public void onClick(View v) {
-                try {
-                    String pwdText = password.getText().toString(), conText = confirm.getText().toString();
-                    if (pwdText.equals(conText)) {
-                        sendPOST_register(username.getText().toString(), password.getText().toString());
-                        showID.setText("User ID: " + userID);
-                    } else {
-                        confirm.setError("Not match");
-                        confirm.requestFocus();
-                    }
-                } catch (IOException | JSONException e) {
-                    throw new RuntimeException(e);
+                String pwdText = password.getText().toString(), conText = confirm.getText().toString();
+                if (pwdText.equals(conText)) {
+                    Log.d("shit", "in");
+                    ExecutorService executor = Executors.newSingleThreadExecutor();
+                    executor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                sendPOST_register(username.getText().toString(), password.getText().toString());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+                    showID.setText("User ID: " + userID);
+                } else {
+                    confirm.setError("Not match");
+                    confirm.requestFocus();
                 }
             }
         });
@@ -99,7 +108,17 @@ public class Registration extends AppCompatActivity {
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
 
-        String csrfToken = getCSRFToken();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    csrfToken = getCSRFToken();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
         conn.setRequestProperty("X-CSRFToken", csrfToken);
         conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
         conn.setDoOutput(true);
@@ -123,7 +142,7 @@ public class Registration extends AppCompatActivity {
                 userID = jsonResponse.getString("userID");
             }
         } else {
-            System.out.println("POST request not worked");
+            Log.d("shit", "POST request not worked");
         }
     }
 

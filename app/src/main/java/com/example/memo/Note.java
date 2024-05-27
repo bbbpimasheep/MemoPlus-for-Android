@@ -14,6 +14,9 @@ public class Note {
     @NonNull
     public String title;
 
+    @ColumnInfo(name = "id")
+    public int id;
+
     @ColumnInfo(name = "type")
     public String type;
 

@@ -5,6 +5,7 @@ import static androidx.core.content.PackageManagerCompat.LOG_TAG;
 import android.Manifest;
 
 import android.annotation.SuppressLint;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -38,6 +39,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -129,7 +131,7 @@ public class MemoContent extends AppCompatActivity{
         picture.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                selectIcon(v);
+                selectPic(v);
             }
         });
 
@@ -173,7 +175,7 @@ public class MemoContent extends AppCompatActivity{
 
     private void addItem(RecyclerViewItem item) { adapter.addItem(item); }
 
-    public void selectIcon(View view) {
+    public void selectPic(View view) {
         Intent intent = new Intent(Intent.ACTION_PICK);
         intent.setType("image/*");
         intent.setAction(Intent.ACTION_GET_CONTENT);
@@ -218,7 +220,7 @@ public class MemoContent extends AppCompatActivity{
             recorder.setImageResource(R.drawable.ic_microphone);
         } else {
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-            this.audioPath = dir.getAbsolutePath() + "/" + "audio" + title.getText().toString() + "-" + timeStamp + ".3gp";
+            this.audioPath = dir.getAbsolutePath() + "/" + "audio-" + title.getText().toString() + "-" + timeStamp + ".3gp";
             startRecording(audioPath);
             recorder.setImageResource(R.drawable.ic_microphone_on);
         }
@@ -279,6 +281,7 @@ public class MemoContent extends AppCompatActivity{
                 Uri selectedImageUri = data.getData();
                 addItem(new ImageItem(selectedImageUri));
                 addItem(new TextItem("This is a text item"));
+                saveImageToDirectory(selectedImageUri, dir);
                 adapter.notifyDataSetChanged();
             } else if (requestCode == TAKE_PHOTO_REQUEST) {
                 assert data != null;
@@ -288,8 +291,8 @@ public class MemoContent extends AppCompatActivity{
                 try {
                     assert imageBitmap != null;
                     String path = dir.getAbsolutePath();
-                    saveImageToStorage(imageBitmap, path);
                     Uri imageUri = Uri.fromFile(createImageFile(path));
+                    saveImageToDirectory(imageUri, dir);
                     Log.d("save", String.valueOf(imageUri));
                     addItem(new ImageItem(imageUri));
                     addItem(new TextItem("This is a text item"));
@@ -301,10 +304,65 @@ public class MemoContent extends AppCompatActivity{
                 Uri audioUri = data.getData();
                 addItem(new AudioItem(audioUri));
                 addItem(new TextItem("This is a text item"));
+                saveAudioToLocalDirectory(audioUri, dir);
             }
         }
     }
 
+    private void saveImageToDirectory(Uri imageUri, File directory) {
+        if (imageUri == null) return;
+        try {
+            ContentResolver contentResolver = getContentResolver();
+            // 从URI获取输入流
+            InputStream inputStream = contentResolver.openInputStream(imageUri);
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+            File outputFile = new File(directory, "image-" + title.getText().toString() + "-" + timeStamp + ".3gp");
+            assert inputStream != null;
+            writeFile(inputStream, outputFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void saveAudioToLocalDirectory(Uri audioUri, File directory) {
+        if (audioUri == null) return;
+        try {
+            // 获取ContentResolver
+            ContentResolver contentResolver = getContentResolver();
+            // 从URI获取输入流
+            InputStream inputStream = contentResolver.openInputStream(audioUri);
+            // 确定输出文件
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+            File outputFile = new File(directory, "audio-" + title.getText().toString() + "-" + timeStamp + ".jpg");
+            // 将输入流写入文件输出流
+            assert inputStream != null;
+            writeFile(inputStream, outputFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void writeFile(InputStream inputStream, File outputFile) throws IOException {
+        OutputStream outputStream = null;
+        try {
+            outputStream = new FileOutputStream(outputFile);
+            byte[] buffer = new byte[4 * 1024];
+            int read;
+            while ((read = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, read);
+            }
+            outputStream.flush();
+        } finally {
+            if (outputStream != null) {
+                outputStream.close();
+            }
+            if (inputStream != null) {
+                inputStream.close();
+            }
+        }
+    }
+
+    /*
     private void saveImageToStorage(Bitmap bitmapImage, String photoDirectory) throws IOException {
         File photoFile = createImageFile(photoDirectory);
         try (FileOutputStream fos = new FileOutputStream(photoFile)) {
@@ -314,7 +372,7 @@ public class MemoContent extends AppCompatActivity{
             e.printStackTrace();
         }
     }
-
+    */
     private File createImageFile(String photoDirectory) throws IOException {
         Log.d("image", "filepath");
         // 创建图片文件名

@@ -15,35 +15,28 @@ import android.widget.TextView;
 import java.util.List;
 
 public class PersonalProfile extends AppCompatActivity {
+    private static AppDatabase db;
     ImageButton backButton, editProfile;
+    TextView nameView, IDView, signView;
+    String password;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile);
-        /*
-        userDao = ((MemoPlus) getApplication()).getDb().userDao();
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                // 使用 UserDao 的 getAll 方法获取所有用户
-                users = userDao.getAll();
-                // 记得在主线程中更新UI
-                runOnUiThread(() -> updateProfileUI(users.get(0)));
-            }
-            @SuppressLint("SetTextI18n")
-            private void updateProfileUI(User user) {
-                TextView nameTitle = findViewById(R.id.name_title);
-                TextView idView = findViewById(R.id.user_id_view);
-                TextView signature = findViewById(R.id.signature);
-                nameTitle.setText(user.name);
-                idView.setText("ID: " + user.ID);
-                signature.setText("“ " + user.signature + " ”");
-            }
-        }).start();
-        */
         backButton = findViewById(R.id.back_button);
         editProfile = findViewById(R.id.edit_profile_button);
+        nameView = findViewById(R.id.name_title);
+        IDView = findViewById(R.id.user_id_view);
+        signView = findViewById(R.id.signature);
+
+        db = MemoPlus.getInstance().getAppDatabase();
+        new Thread(() -> {
+            User user = db.userDao().getAllUsers().get(0);
+            nameView.setText(user.username);
+            IDView.setText(user.userID);
+            signView.setText(user.signature);
+        }).start();
 
         backButton.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("RestrictedApi")
@@ -62,6 +55,10 @@ public class PersonalProfile extends AppCompatActivity {
             public void onClick(View v) {
                 Log.d(LOG_TAG, "Back button clicked!");
                 Intent intent = new Intent(PersonalProfile.this, EditProfile.class);
+                intent.putExtra("name", nameView.getText().toString());
+                intent.putExtra("ID", IDView.getText().toString());
+                intent.putExtra("signature", signView.getText().toString());
+                intent.putExtra("password", password);
                 startActivity(intent);
             }
         });
