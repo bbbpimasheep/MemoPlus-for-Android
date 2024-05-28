@@ -5,17 +5,20 @@ import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.List;
 
 @Entity(tableName = "notes")
 public class Note {
     @PrimaryKey
-    @ColumnInfo(name = "title")
-    @NonNull
-    public String title;
-
     @ColumnInfo(name = "id")
+    @NonNull
     public int id;
+
+    @ColumnInfo(name = "title")
+    public String title;
 
     @ColumnInfo(name = "type")
     public String type;

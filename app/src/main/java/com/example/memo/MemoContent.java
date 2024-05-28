@@ -13,9 +13,14 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
+import android.media.browse.MediaBrowser;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -31,10 +36,16 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -44,8 +55,13 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MemoContent extends AppCompatActivity{
+    private static AppDatabase db;
+    private UserDao userDao;
+    private NoteDao noteDao;
     static final int SELECT_IMAGE_REQUEST = 1;
     static final int TAKE_PHOTO_REQUEST = 2;
     static final int PICK_AUDIO_REQUEST = 3;
@@ -54,12 +70,17 @@ public class MemoContent extends AppCompatActivity{
     ImageButton back2home, picture, audio, camera, recorder,
                 delete, save, settags;
     EditText title, time;
-    MultiTypeAdapter adapter;
+    @SuppressLint("StaticFieldLeak")
+    static MultiTypeAdapter adapter;
     List<RecyclerViewItem> items;
+    RecyclerView recyclerView;
     File dir;
     boolean isRecording = false;
     MediaRecorder Mrecorder = null;
-    String audioPath = null;
+    String audioPath = null, lastSave2Cloud, type, memoTitle, memoTime;
+    int noteID = -1;
+    Note note = null;
+    ExecutorService executorService;
 
     @SuppressLint("SetTextI18n")
     @Override
@@ -77,13 +98,25 @@ public class MemoContent extends AppCompatActivity{
         this.save = findViewById(R.id.save_button);
         this.settags = findViewById(R.id.set_tag_button);
 
-        Intent intent = getIntent();
-        String memoTitle = intent.getStringExtra("TITLE");
-        title.setText(memoTitle);
-        String memoTime = intent.getStringExtra("TIME");
+        this.recyclerView = findViewById(R.id.recycler_view);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        this.items = new ArrayList<>();
+        adapter = new MultiTypeAdapter(items, MemoContent.this);
+        recyclerView.setAdapter(adapter);
 
+        db = MemoPlus.getInstance().getAppDatabase();
+        userDao = db.userDao();
+        noteDao = db.noteDao();
+
+        this.executorService = Executors.newFixedThreadPool(1);
+
+        Intent intent = getIntent();
+        this.memoTitle = intent.getStringExtra("TITLE");
+        title.setText(memoTitle);
+        this.memoTime = intent.getStringExtra("TIME");
+        this.noteID = intent.getIntExtra("ID", -1);
         assert memoTitle != null;
-        this.dir = new File(MemoContent.this.getFilesDir(), memoTitle);
+        this.dir = new File(MemoContent.this.getFilesDir(), String.valueOf(noteID));
         Log.d("Files directory", MemoContent.this.getFilesDir().toString());
         if (!dir.exists()) {
             // 创建文件夹
@@ -95,82 +128,132 @@ public class MemoContent extends AppCompatActivity{
             }
         }
 
-        delete.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // deleteMemo();
-                Intent intent = new Intent(MemoContent.this, MainActivity.class);
-                startActivity(intent);
-            }
+        loadInfo();
+
+        delete.setOnClickListener(v -> {
+            // deleteMemo();
+            Intent intent13 = new Intent(MemoContent.this, MainActivity.class);
+            startActivity(intent13);
         });
 
-        save.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // saveMemo2Local();
-            }
+        save.setOnClickListener(v -> saveMemo2Local());
+
+        back2home.setOnClickListener(v -> {
+            Log.d("back", "Back button clicked!");
+            Intent intent12 = new Intent(MemoContent.this, MainActivity.class);
+            startActivity(intent12);
         });
 
-        back2home.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("RestrictedApi")
-            @Override
-            public void onClick(View v) {
-                Log.d("back", "Back button clicked!");
-                Intent intent = new Intent(MemoContent.this, MainActivity.class);
-                startActivity(intent);
-            }
+        picture.setOnClickListener(this::selectPic);
+
+        camera.setOnClickListener(v -> {
+            Log.d("camera", "heard");
+            openCamera();
         });
 
-        RecyclerView recyclerView = findViewById(R.id.recycler_view);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        audio.setOnClickListener(v -> openAudioFilePicker());
 
-        this.items = new ArrayList<>();
-        this.adapter = new MultiTypeAdapter(items, MemoContent.this);
-        recyclerView.setAdapter(adapter);
-
-        picture.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                selectPic(v);
-            }
+        recorder.setOnClickListener(v -> {
+            Log.d("recorder", "heard");
+            openRecorder();
         });
 
-        camera.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("QueryPermissionsNeeded")
-            @Override
-            public void onClick(View v) {
-                Log.d("camera", "heard");
-                openCamera();
-            }
+        settags.setOnClickListener(v -> {
+            Intent intent1 = new Intent(MemoContent.this, Tags.class);
+            intent1.putExtra("TITLE", title.getText().toString());
+            intent1.putExtra("TIME", memoTime);
+            intent1.putExtra("TYPE", type);
+            intent1.putExtra("ID", noteID);
+            startActivity(intent1);
         });
+    }
 
-        audio.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                openAudioFilePicker();
+    protected void loadInfo() {
+        super.onResume();
+        executorService.submit(() -> {
+            if (noteID == -1) {
+                this.note = noteDao.getNoteByTitle(memoTitle);
+                this.noteID = note.id;
+            } else {
+                this.note = noteDao.getNoteByID(noteID);
             }
-        });
+            this.lastSave2Cloud = note.last_save;
+            this.type = note.type;
+            Log.d("title-in", note.title);
 
-        recorder.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Log.d("recorder", "heard");
-                openRecorder();
+            Handler handler = new Handler(Looper.getMainLooper());
+            handler.post(() -> {
+                List<String> files = note.files;
+                for(String file: files) {
+                    try {
+                        if (file != null && !file.isEmpty()){
+                            JSONObject fileJSON = new JSONObject(file);
+                            String typeName = fileJSON.getString("type");
+                            Log.d("type-text", file);
+                            if(typeName.equals("text")) {
+                                addItem(new TextItem(fileJSON.getString("content")));
+                            }else if(typeName.equals("image")){
+                                addItem(new ImageItem(fileJSON.getString("content")));
+                            }else if(typeName.equals("audio")){
+                                addItem(new AudioItem(fileJSON.getString("content")));
+                            }
+                        }
+                    } catch (JSONException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                if (adapter.items.isEmpty()) {
+                    addItem(new TextItem("Type here."));
+                }
+                recyclerView.setAdapter(adapter);
+            });
+        });
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    private void saveMemo2Local() {
+        adapter.notifyDataSetChanged();
+        Note updated = new Note();
+        updated.id = noteID;
+        updated.title = title.getText().toString();
+        Log.d("title", updated.title);
+
+        List<String> contentJSON = new ArrayList<>();
+        for (RecyclerViewItem item : adapter.items) {
+            if (item.getType() == RecyclerViewItem.TYPE_TEXT) {
+                TextItem textItem = (TextItem) item;
+                String text = null;
+                if (!textItem.getText().isEmpty()) {
+                    text = "{\"content\": \"" + textItem.getText() + "\"," +
+                            "\"type\": \"text\"}";
+                    contentJSON.add(text);
+                }
+            } else if (item.getType() == RecyclerViewItem.TYPE_IMAGE) {
+                ImageItem imageItem = (ImageItem) item;
+                String path = imageItem.getImagePath();
+                Log.d("note-type", path);
+                String image = "{\"content\": \"" + path + "\"," +
+                        "\"type\": \"image\"}";
+                contentJSON.add(image);
+            } else if (item.getType() == RecyclerViewItem.TYPE_AUDIO) {
+                AudioItem audioItem = (AudioItem) item;
+                String uri = audioItem.getAudioUri().toString();
+                String audio = "{\"content\": \"" + uri + "\"," +
+                        "\"type\": \"audio\"}";
+                contentJSON.add(audio);
             }
-        });
 
-        settags.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MemoContent.this, Tags.class);
-                intent.putExtra("TITLE", title.getText().toString());
-                intent.putExtra("TIME", memoTime);
-                startActivity(intent);
-            }
-        });
+            updated.files = contentJSON;
 
-        addItem(new TextItem("This is a text item"));
-        // addItem(new AudioItem("path_to_audio_file"));
+            String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
+            updated.last_edit = timeStamp;
+            updated.last_save = lastSave2Cloud;
+            updated.type = type;
+        }
+        executorService.submit(() -> {
+            // 执行后台任务
+            noteDao.updateNote(updated);
+        });
     }
 
     private void addItem(RecyclerViewItem item) { adapter.addItem(item); }
@@ -214,8 +297,8 @@ public class MemoContent extends AppCompatActivity{
         if (isRecording) {
             stopRecording();
             File audioFile = new File(audioPath);
-            Uri audioUri = Uri.fromFile(audioFile);
-            addItem(new AudioItem(audioUri));
+            // Uri audioUri = Uri.fromFile(audioFile);
+            addItem(new AudioItem(audioPath));
             addItem(new TextItem("This is a text item"));
             recorder.setImageResource(R.drawable.ic_microphone);
         } else {
@@ -279,53 +362,65 @@ public class MemoContent extends AppCompatActivity{
             if (requestCode == SELECT_IMAGE_REQUEST) {
                 assert data != null;
                 Uri selectedImageUri = data.getData();
-                addItem(new ImageItem(selectedImageUri));
+                String local = saveImageToDirectory(selectedImageUri, dir);
+                addItem(new ImageItem(local));
                 addItem(new TextItem("This is a text item"));
-                saveImageToDirectory(selectedImageUri, dir);
                 adapter.notifyDataSetChanged();
             } else if (requestCode == TAKE_PHOTO_REQUEST) {
-                assert data != null;
-                Bundle extras = data.getExtras();
-                assert extras != null;
-                Bitmap imageBitmap = (Bitmap) extras.get("data");
-                try {
-                    assert imageBitmap != null;
-                    String path = dir.getAbsolutePath();
-                    Uri imageUri = Uri.fromFile(createImageFile(path));
-                    saveImageToDirectory(imageUri, dir);
-                    Log.d("save", String.valueOf(imageUri));
-                    addItem(new ImageItem(imageUri));
-                    addItem(new TextItem("This is a text item"));
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                if (data != null && data.getExtras() != null) {
+                    Bitmap imageBitmap = (Bitmap) data.getExtras().get("data");
+                    if (imageBitmap != null) {
+                        // 保存照片到文件中
+                        String path = saveBitmapToDirectory(imageBitmap, dir);
+                        // 添加照片项到列表中
+                        addItem(new ImageItem(path));
+                        addItem(new TextItem("This is a text item"));
+                    }
                 }
             } else if (requestCode == PICK_AUDIO_REQUEST) {
                 assert data != null;
                 Uri audioUri = data.getData();
-                addItem(new AudioItem(audioUri));
+                String local = saveAudioToLocalDirectory(audioUri, dir);
+                addItem(new AudioItem(local));
                 addItem(new TextItem("This is a text item"));
-                saveAudioToLocalDirectory(audioUri, dir);
             }
         }
     }
 
-    private void saveImageToDirectory(Uri imageUri, File directory) {
-        if (imageUri == null) return;
+    private String saveBitmapToDirectory(Bitmap imageBitmap, File directory) {
+        File outputFile = null;
+        try {
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+            outputFile = new File(directory, "image-" + title.getText().toString() + "-" + timeStamp + ".3gp");
+            FileOutputStream outputStream = new FileOutputStream(outputFile);
+            imageBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
+            outputStream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return outputFile.getPath();
+    }
+
+    private String saveImageToDirectory(Uri imageUri, File directory) {
+        if (imageUri == null) return null;
+        File outputFile = null;
         try {
             ContentResolver contentResolver = getContentResolver();
             // 从URI获取输入流
             InputStream inputStream = contentResolver.openInputStream(imageUri);
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-            File outputFile = new File(directory, "image-" + title.getText().toString() + "-" + timeStamp + ".3gp");
+            outputFile = new File(directory, "image-" + title.getText().toString() + "-" + timeStamp + ".jpg");
             assert inputStream != null;
             writeFile(inputStream, outputFile);
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return outputFile.getPath();
     }
 
-    private void saveAudioToLocalDirectory(Uri audioUri, File directory) {
-        if (audioUri == null) return;
+    private String saveAudioToLocalDirectory(Uri audioUri, File directory) {
+        if (audioUri == null) return null;
+        File outputFile = null;
         try {
             // 获取ContentResolver
             ContentResolver contentResolver = getContentResolver();
@@ -333,13 +428,15 @@ public class MemoContent extends AppCompatActivity{
             InputStream inputStream = contentResolver.openInputStream(audioUri);
             // 确定输出文件
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-            File outputFile = new File(directory, "audio-" + title.getText().toString() + "-" + timeStamp + ".jpg");
+            outputFile = new File(directory, "audio-" + title.getText().toString() + "-" + timeStamp + ".3pg");
             // 将输入流写入文件输出流
             assert inputStream != null;
             writeFile(inputStream, outputFile);
         } catch (IOException e) {
             e.printStackTrace();
         }
+        String path = outputFile.getPath();
+        return outputFile.getPath();
     }
 
     private void writeFile(InputStream inputStream, File outputFile) throws IOException {
@@ -362,23 +459,13 @@ public class MemoContent extends AppCompatActivity{
         }
     }
 
-    /*
-    private void saveImageToStorage(Bitmap bitmapImage, String photoDirectory) throws IOException {
-        File photoFile = createImageFile(photoDirectory);
-        try (FileOutputStream fos = new FileOutputStream(photoFile)) {
-            bitmapImage.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-            fos.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-    */
     private File createImageFile(String photoDirectory) throws IOException {
         Log.d("image", "filepath");
         // 创建图片文件名
         @SuppressLint("SimpleDateFormat")
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String path = photoDirectory + "/" + title.getText().toString() + "-" + timeStamp + ".jpg";
+        Log.d("photo", path);
         return new File(path);
     }
 
@@ -400,7 +487,7 @@ public class MemoContent extends AppCompatActivity{
     }
 
     public static class TextItem extends RecyclerViewItem {
-        private final String text;
+        private String text;
 
         public TextItem(String text) {
             super(TYPE_TEXT);
@@ -410,32 +497,34 @@ public class MemoContent extends AppCompatActivity{
         public String getText() {
             return text;
         }
+        public void updateText(String s) { this.text = s;}
     }
 
     public static class ImageItem extends RecyclerViewItem {
-        private final Uri imageUri;
+        private final String imagePath;
 
-        public ImageItem(Uri imageUri) {
+        public ImageItem(String imagePath) {
             super(TYPE_IMAGE);
-            this.imageUri = imageUri;
+            this.imagePath = imagePath;
         }
 
-        public Uri getImageUri() {
-            return imageUri;
+        public String getImagePath() {
+            return imagePath;
         }
     }
 
     public static class AudioItem extends RecyclerViewItem {
+        private final String audioPath;
         private final Uri audioUri;
 
-        public AudioItem(Uri audioUri) {
+        public AudioItem(String audioPath) {
             super(TYPE_AUDIO);
-            this.audioUri = audioUri;
+            this.audioPath = audioPath;
+            this.audioUri = Uri.parse(audioPath);
         }
 
-        public Uri getAudioUri() {
-            return audioUri;
-        }
+        public Uri getAudioUri() { return audioUri; }
+        public String getAudioPath() { return audioPath; }
     }
 
     public static class TextViewHolder extends RecyclerView.ViewHolder {
@@ -448,26 +537,43 @@ public class MemoContent extends AppCompatActivity{
 
         public void bind(TextItem textItem) {
             editText.setText(textItem.getText());
+            editText.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {}
+                @Override
+                public void afterTextChanged(Editable s) {
+                    textItem.updateText(s.toString());
+                }
+            });
         }
     }
 
     public static class ImageViewHolder extends RecyclerView.ViewHolder {
         ImageView imageView;
+        ImageButton delete;
 
         public ImageViewHolder(View itemView) {
             super(itemView);
             imageView = itemView.findViewById(R.id.image_view);
+            delete = itemView.findViewById(R.id.delete);
         }
 
         public void bind(ImageItem imageItem, Context context) {
             try {
-                InputStream inputStream = context.getContentResolver().openInputStream(imageItem.getImageUri());
+                File imageFile = new File(imageItem.getImagePath());
+                InputStream inputStream = new FileInputStream(imageFile);
                 Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
                 Bitmap scaledBitmap = scaleBitmapToFitImageView(bitmap, imageView);
                 imageView.setImageBitmap(scaledBitmap);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             }
+            delete.setOnClickListener(v -> {
+                int pos = getBindingAdapterPosition();
+                adapter.deleteItem(pos);
+            });
         }
 
         private Bitmap scaleBitmapToFitImageView(Bitmap bitmap, ImageView imageView) {
@@ -490,52 +596,56 @@ public class MemoContent extends AppCompatActivity{
     public static class AudioViewHolder extends RecyclerView.ViewHolder {
         ImageButton playButton;
         MediaPlayer mediaPlayer;
+        ImageButton delete;
         boolean playing = false;
 
         public AudioViewHolder(View itemView) {
             super(itemView);
             playButton = itemView.findViewById(R.id.play_button);
             mediaPlayer = new MediaPlayer();
+            delete = itemView.findViewById(R.id.delete);
         }
 
         public void bind(AudioItem audioItem) {
-            playButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    try {
-                        if (!playing) {
-                            Log.d("audio", "play");
-                            mediaPlayer.setDataSource(audioItem.getAudioUri().toString());
-                            mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-                                @Override
-                                public void onPrepared(MediaPlayer mp) {
-                                    mediaPlayer.start();
-                                }
-                            });
-                            mediaPlayer.setOnCompletionListener(mp -> {
-                                mediaPlayer.reset();
-                            });
-                            playing = !playing;
-                            Log.d("audio", String.valueOf(playing));
-                            playButton.setImageResource(R.drawable.ic_pause);
-                        } else {
-                            Log.d("audio", "pause");
-                            if (mediaPlayer != null) mediaPlayer.reset();
-                            playing = !playing;
-                            playButton.setImageResource(R.drawable.ic_play);
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        Log.e("audioerror", "IOException during prepare or start: ", e);
+            playButton.setOnClickListener(v -> {
+                try {
+                    if (!playing) {
+                        Log.d("audio", "play");
+                        mediaPlayer.setDataSource(audioItem.getAudioUri().toString());
+                        mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                            @Override
+                            public void onPrepared(MediaPlayer mp) {
+                                mediaPlayer.start();
+                            }
+                        });
+                        mediaPlayer.setOnCompletionListener(mp -> {
+                            mediaPlayer.reset();
+                        });
+                        playing = !playing;
+                        Log.d("audio", String.valueOf(playing));
+                        playButton.setImageResource(R.drawable.ic_pause);
+                    } else {
+                        Log.d("audio", "pause");
                         if (mediaPlayer != null) mediaPlayer.reset();
-                        playButton.setImageResource(R.drawable.ic_play);
-                    } catch (IllegalStateException e) {
-                        Log.e("audioerror", "IllegalStateException during prepare or start: ", e);
-                        if (mediaPlayer != null) mediaPlayer.reset();
-                        if (mediaPlayer != null) mediaPlayer.release();
+                        playing = !playing;
                         playButton.setImageResource(R.drawable.ic_play);
                     }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    Log.e("audioerror", "IOException during prepare or start: ", e);
+                    if (mediaPlayer != null) mediaPlayer.reset();
+                    playButton.setImageResource(R.drawable.ic_play);
+                } catch (IllegalStateException e) {
+                    Log.e("audioerror", "IllegalStateException during prepare or start: ", e);
+                    if (mediaPlayer != null) mediaPlayer.reset();
+                    if (mediaPlayer != null) mediaPlayer.release();
+                    playButton.setImageResource(R.drawable.ic_play);
                 }
+            });
+
+            delete.setOnClickListener(v -> {
+                int pos = getBindingAdapterPosition();
+                adapter.deleteItem(pos);
             });
         }
     }
@@ -590,38 +700,18 @@ public class MemoContent extends AppCompatActivity{
             items.add(item);
             notifyItemInserted(items.size() - 1);
         }
+
+        public void deleteItem(int position) {
+            items.remove(position);
+            notifyItemRemoved(position);
+        }
     }
 
     protected void onPause() {
         super.onPause();
         // 保存数据
+        saveMemo2Local();
         // saveMemo2Cloud();
-        int text_count = 0;
-        for (RecyclerViewItem item : adapter.items) {
-            if (item.getType() == RecyclerViewItem.TYPE_TEXT) {
-                TextItem textItem = (TextItem) item;
-                String content = textItem.getText();
-                FileOutputStream fos = null;
-                try {
-                    File file = new File(this.dir, "text_" + text_count);
-                    // 获取应用的文件目录
-                    fos = new FileOutputStream(file);
-                    // 将字符串写入文件
-                    fos.write(content.getBytes());
-                    Log.d("Text saved", file.getAbsolutePath());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } finally {
-                    if (fos != null) {
-                        try {
-                            fos.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-                text_count += 1;
-            }
-        }
+
     }
 }

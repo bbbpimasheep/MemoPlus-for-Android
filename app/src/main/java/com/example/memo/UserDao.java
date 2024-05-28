@@ -23,7 +23,13 @@ public interface UserDao {
     void updateUser(User user);
     @Delete
     void deleteUser(User user);
-    @Query("SELECT token FROM users WHERE userid = :userId")
-    String getToken(String userId);
+    @Query("SELECT token FROM users WHERE userid = :userID")
+    String getToken(String userID);
+    @Query("UPDATE users SET username = :name WHERE userID = :userID")
+    void updateUsername(String userID, String name);
+    @Query("UPDATE users SET password = :password WHERE userID = :userID")
+    void updatePassword(String userID, String password);
+    @Query("UPDATE users SET signature = :signature WHERE userID = :userID")
+    void updateSignature(String userID, String signature);
 }
 

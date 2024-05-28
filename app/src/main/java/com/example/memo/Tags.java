@@ -3,7 +3,10 @@ package com.example.memo;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,55 +20,77 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Tags extends AppCompatActivity {
+    private static AppDatabase db;
+    ExecutorService executorService;
     RecyclerView tagRecyclerView;
-    ImageButton addTag, backButton;
+    ImageButton setTag, backButton;
     EditText inputTag;
     TextView showTag;
     List<String> tagList;
     TagAdapter adapter;
-    String memoTitle, memoTime;
+    String memoTitle, memoTime, memoType;
+    private NoteDao noteDao;
+    int noteID;
+    @SuppressLint("SetTextI18n")
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.select_tag);
 
+        db = MemoPlus.getInstance().getAppDatabase();
+        noteDao = db.noteDao();
+
         Intent intent = getIntent();
         this.memoTitle = intent.getStringExtra("TITLE");
         this.memoTime = intent.getStringExtra("TIME");
+        this.noteID = intent.getIntExtra("ID", 0);
+        this.memoType = intent.getStringExtra("TYPE");
 
         this.backButton = findViewById(R.id.back_button);
-        this.addTag = findViewById(R.id.add_tag_button);
+        this.setTag = findViewById(R.id.set_tag_button);
         this.inputTag = findViewById(R.id.input_tag_bar);
         this.showTag = findViewById(R.id.show_tag_bar);
         this.tagRecyclerView = findViewById(R.id.recycler_view);
 
-        tagList = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            tagList.add("Tag " + i);
-        }
+        this.executorService = Executors.newFixedThreadPool(1);
+
+        showTag.setText("Tag: " + memoType);
+        this.tagList = new ArrayList<>();
+        tagList.add("Study");
+        tagList.add("Refreshment");
+        tagList.add("Travel");
+        tagList.add("Food & Drink");
+        tagList.add("Family");
         setAdapter();
 
-        backButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(Tags.this, MemoContent.class);
-                intent.putExtra("TITLE", memoTitle);
-                intent.putExtra("TIME", memoTime);
-                startActivity(intent);
-            }
+        backButton.setOnClickListener(v -> {
+            Intent intent1 = new Intent(Tags.this, MemoContent.class);
+            intent1.putExtra("TITLE", memoTitle);
+            intent1.putExtra("TIME", memoTime);
+            intent1.putExtra("ID", noteID);
+            startActivity(intent1);
         });
 
-        addTag.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (!inputTag.getText().toString().isEmpty()) {
-                    tagList.add(inputTag.getText().toString());
-                    setAdapter();
-                    inputTag.setText("");
-                }
+        setTag.setOnClickListener(v -> {
+            if (!inputTag.getText().toString().isEmpty()) {
+                executorService.submit(() -> {
+                    Note note = noteDao.getNoteByID(noteID);
+                    note.type = inputTag.getText().toString();
+                    noteDao.updateNote(note);
+                    Handler handler = new Handler(Looper.getMainLooper());
+                    handler.post(() -> {
+                        memoType = inputTag.getText().toString();
+                    });
+                });
+                showTag.setText("Tag: " + inputTag.getText().toString());
             }
         });
     }
@@ -102,18 +127,15 @@ public class Tags extends AppCompatActivity {
             Log.d("tags", tag);
             holder.tagDisplay.setText(tag);
 
-            holder.tagDisplay.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    /*
-                    Intent intent = new Intent(context, MemoContent.class);
-                    intent.putExtra("TITLE", holder.titleView.getText().toString());
-                    intent.putExtra("TIME", holder.timeView.getText().toString());
-                    context.startActivity(intent);
-                    */
-                    // setTag();
-                    showTag.setText("Tag: " + holder.tagDisplay.getText().toString());
-                }
+            holder.tagDisplay.setOnClickListener(v -> {
+                /*
+                Intent intent = new Intent(context, MemoContent.class);
+                intent.putExtra("TITLE", holder.titleView.getText().toString());
+                intent.putExtra("TIME", holder.timeView.getText().toString());
+                context.startActivity(intent);
+                */
+                // setTag();
+                inputTag.setText(holder.tagDisplay.getText().toString());
             });
 
             holder.deleteButton.setOnClickListener(new View.OnClickListener() {

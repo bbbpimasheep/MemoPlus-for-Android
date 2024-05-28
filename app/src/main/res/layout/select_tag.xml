@@ -84,7 +84,7 @@
                 android:background="@color/floral_white"/>
 
             <ImageButton
-                android:id="@+id/add_tag_button"
+                android:id="@+id/set_tag_button"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:layout_alignParentEnd="true"

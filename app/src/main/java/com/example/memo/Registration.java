@@ -10,6 +10,8 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.util.Base64;
 import android.util.Log;
@@ -75,17 +77,24 @@ public class Registration extends AppCompatActivity {
                 if (pwdText.equals(conText)) {
                     Log.d("shit", "in");
                     ExecutorService executor = Executors.newSingleThreadExecutor();
+                    Handler handler = new Handler(Looper.getMainLooper());
                     executor.execute(new Runnable() {
                         @Override
                         public void run() {
                             try {
                                 sendPOST_register(username.getText().toString(), password.getText().toString());
+                                Log.d("csrf", userID);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    showID.setText("User ID: " + userID);
+                                }
+                            });
                         }
                     });
-                    showID.setText("User ID: " + userID);
                 } else {
                     confirm.setError("Not match");
                     confirm.requestFocus();
@@ -114,6 +123,7 @@ public class Registration extends AppCompatActivity {
             public void run() {
                 try {
                     csrfToken = getCSRFToken();
+                    Log.d("csrf", csrfToken);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

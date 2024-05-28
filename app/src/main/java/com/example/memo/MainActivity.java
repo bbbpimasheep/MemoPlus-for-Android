@@ -14,6 +14,8 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,25 +39,35 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
     AppDatabase db;
+    private UserDao userDao;
+    private NoteDao noteDao;
+    private static String authToken;
     RecyclerView memoRecyclerView;
     MemoAdapter adapter;
     TextView bottomSum;
     ImageButton homeButton, addMemo, aiButton;
-    boolean login = false;
+    boolean login = true; // false
     List<MemoItem> MemoList;
+    ExecutorService executorService;
+    int maxID = -1;
 
     public static String uri_s = "http://android.xulincaigou.online:8000/NotepadServer/";
 
-    @SuppressLint({"SetTextI18n", "RestrictedApi"})
+    @SuppressLint({"SetTextI18n", "RestrictedApi", "NotifyDataSetChanged"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         db = MemoPlus.getInstance().getAppDatabase();
+        userDao = db.userDao();
+        noteDao = db.noteDao();
 
         this.memoRecyclerView = findViewById(R.id.recycler_view);
         this.bottomSum = findViewById(R.id.bottom_bar);
@@ -63,8 +75,12 @@ public class MainActivity extends AppCompatActivity {
         this.addMemo = findViewById(R.id.add_memo_button);
         this.aiButton = findViewById(R.id.ai_button);
 
+        this.MemoList = new ArrayList<>();
+
         Intent getIntent = getIntent();
-        this.login = getIntent.getBooleanExtra("login", false);
+        this.login = getIntent.getBooleanExtra("login", true); // false
+
+        // new Thread(() -> {noteDao.deleteAllNotes();}).start();
 
         aiButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -83,39 +99,121 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent;
                 if(login) intent = new Intent(MainActivity.this, PersonalProfile.class);
                 else intent = new Intent(MainActivity.this, Login.class);
-
                 startActivity(intent);
             }
         });
 
-        this.MemoList = new ArrayList<>();
-        MemoItem intro = new MemoItem();
-        intro.title = "Intro: Start your own Memo+";
-        intro.memo_abstract = "Try our new functions from the advancing AI...";
-        intro.edit_time = "大明崇禎十七年五月一日";
-        MemoList.add(intro);
-        for (int i = 1; i < 10; i++) {
-            MemoItem item = new MemoItem();
-            item.title = "New Title " + i;
-            item.memo_abstract = "Default abstract " + i;
-            item.edit_time = "default time " + i;
-            MemoList.add(item);
-        }
-        bottomSum.setText("Total: " + MemoList.size() + " memos");
-        setAdapter();
-
         addMemo.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                MemoItem item = new MemoItem();
-                item.title = "New Title";
-                item.memo_abstract = "Default abstract";
-                item.edit_time = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-                MemoList.add(item);
-                bottomSum.setText("Total: " + MemoList.size() + " memos");
-                setAdapter();
+                ExecutorService localExeService = Executors.newFixedThreadPool(1);
+                localExeService.submit(() -> {
+                    Note newNote = new Note();
+                    maxID += 1;
+                    newNote.title = "New Title " + maxID;
+                    newNote.id = maxID;
+                    Log.d("title-id-new", String.valueOf(maxID));
+                    newNote.type = "Not chosen yet";
+                    String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
+                    newNote.last_edit = "Newly created at " + timeStamp;
+                    newNote.last_save = "";
+                    newNote.files = new ArrayList<>();
+                    String content = "{\"content\": \"Type here.\"," +
+                            "\"type\": \"text\"}";
+                    newNote.files.add(content);
+                    noteDao.insertNote(newNote);
+                    Handler handler = new Handler(Looper.getMainLooper());
+                    handler.post(() -> {
+                        MemoItem item = new MemoItem();
+                        item.title = newNote.title;
+                        item.memo_abstract = "What's going on?";
+                        item.edit_time = newNote.last_edit;
+                        MemoList.add(item);
+                        bottomSum.setText("Total: " + MemoList.size() + " memos");
+                        setAdapter();
+                    });
+                });
             }
         });
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    @Override
+    protected void onResume() {
+        super.onResume();
+        this.executorService = Executors.newFixedThreadPool(1);
+        if (login) {
+            executorService.submit(() -> {
+                List<User> users = db.userDao().getAllUsers();
+                if (!users.isEmpty()) authToken = users.get(0).userID;
+                List<Note> notes = noteDao.getAllNotes();
+                if (notes.isEmpty()) {
+                    Log.d("notes", "files list is empty");
+                    initializeMain();
+                }
+                Handler handler = new Handler(Looper.getMainLooper());
+                handler.post(() -> {
+                    MemoList.clear();
+                    for(Note note: notes) {
+                        if (note.id > maxID) {
+                            maxID = note.id;
+                        }
+                        Log.d("title-id-main", String.valueOf(maxID));
+                        MemoItem item = new MemoItem();
+                        item.title = note.title;
+                        Log.d("title", note.title);
+                        item.edit_time = note.last_edit;
+                        String abs = "";
+                        try {
+                            if (!note.files.isEmpty()) {
+                                JSONObject jsonAbs = new JSONObject(note.files.get(0));
+                                abs = jsonAbs.getString("content");
+                            }
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+                        if (abs.length() > 36) {
+                            abs = abs.substring(0,36);
+                        }
+                        item.memo_abstract = abs + "...";
+                        item.type = note.type;
+                        MemoList.add(item);
+                        Log.d("title", String.valueOf(MemoList.size()));
+                    }
+                    adapter.notifyDataSetChanged();
+                    setAdapter();
+                });
+            });
+        }
+        bottomSum.setText("Total: " + MemoList.size() + " memos");
+        setAdapter();
+    }
+
+    public void initializeMain() {
+        executorService.submit(() -> {
+            // 插入Note的逻辑
+            Note newNote = new Note();
+            // 设置Note的属性
+            noteDao.insertNote(newNote);
+
+            // 插入完成后更新UI
+            runOnUiThread(() -> {
+                // 更新UI逻辑
+            });
+        });
+        Note Intro = new Note();
+        Intro.title = "Intro: Start your own Memo+";
+        String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
+        Intro.last_edit = "Newly created at " + timeStamp;
+        Intro.last_save = "";
+        Intro.type = "Introduction";
+        Intro.id = 0;
+        String content = "{\"content\": \"Try our new functions from the advancing AI. Basic functions can be adopted by pressing buttons below.\"," +
+                "\"type\": \"text\"}";
+        Log.d("notes", content);
+        Intro.files = new ArrayList<>();
+        Intro.files.add(content);
+        noteDao.insertNote(Intro);
     }
 
     public void setAdapter() {
@@ -139,6 +237,7 @@ public class MainActivity extends AppCompatActivity {
         conn.setRequestProperty("Accept", "application/json");
 
         int responseCode = conn.getResponseCode();
+        Log.d("csrf", String.valueOf(responseCode));
         if (responseCode == HttpURLConnection.HTTP_OK) {
             try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
                 StringBuilder response = new StringBuilder();
@@ -180,6 +279,7 @@ public class MainActivity extends AppCompatActivity {
             holder.titleView.setText(item.title);
             holder.abstractView.setText(item.memo_abstract);
             holder.timeView.setText("Last edit: " + item.edit_time);
+            holder.type.setText(item.type);
             holder.background.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {

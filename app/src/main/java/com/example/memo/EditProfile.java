@@ -36,6 +36,7 @@ import java.net.URL;
 
 public class EditProfile extends AppCompatActivity {
     private static AppDatabase db;
+    private UserDao userDao;
     static final int SELECT_IMAGE_REQUEST = 1;
     private static String authToken;
     ImageButton cancelButton, selectButton, setNameButton, setPwdButton, setSignButton, setAvatarButton;
@@ -63,10 +64,7 @@ public class EditProfile extends AppCompatActivity {
         this.editSign = findViewById(R.id.signature);
 
         db = MemoPlus.getInstance().getAppDatabase();
-
-        new Thread(() -> {
-            authToken = db.userDao().getToken(userID);
-        }).start();
+        userDao = db.userDao();
 
         Intent intent = getIntent();
         userName = intent.getStringExtra("name");
@@ -78,6 +76,9 @@ public class EditProfile extends AppCompatActivity {
         signature = intent.getStringExtra("signature");
         editSign.setText(signature);
 
+        new Thread(() -> {
+            authToken = db.userDao().getToken(userID);
+        }).start();
 
         cancelButton.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("RestrictedApi")
@@ -94,6 +95,13 @@ public class EditProfile extends AppCompatActivity {
             public void onClick(View v) {
                 try {
                     sendPOST_changeUsername(userID, editName.getText().toString());
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            // 更新用户的名称
+                            userDao.updateUsername(userID, editName.getText().toString());
+                        }
+                    }).start();
                 } catch (IOException | JSONException e) {
                     throw new RuntimeException(e);
                 }
@@ -107,6 +115,13 @@ public class EditProfile extends AppCompatActivity {
                     String newPassword = newPwd.getText().toString();
                     if (!password.equals(newPassword)) {
                         sendPOST_changePassword(userID, password, newPassword);
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // 更新用户的名称
+                                userDao.updatePassword(userID, newPassword);
+                            }
+                        }).start();
                     } else {
                         newPwd.setError("Same!");
                         newPwd.requestFocus();
@@ -122,6 +137,13 @@ public class EditProfile extends AppCompatActivity {
             public void onClick(View v) {
                 try {
                     sendPOST_changePersonalSignature(userID, editSign.getText().toString());
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            // 更新用户的名称
+                            userDao.updateSignature(userID, editSign.getText().toString());
+                        }
+                    }).start();
                 } catch (IOException | JSONException e) {
                     throw new RuntimeException(e);
                 }
