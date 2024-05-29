@@ -2,8 +2,6 @@ package com.example.memo;
 
 import static androidx.core.content.PackageManagerCompat.LOG_TAG;
 
-import static com.example.memo.MainActivity.getCSRFToken;
-
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
@@ -93,11 +91,6 @@ public class Login extends AppCompatActivity{
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
-        conn.setDoOutput(true);
 
         JSONObject jsonInputString = new JSONObject();
         jsonInputString.put("userID", userID);

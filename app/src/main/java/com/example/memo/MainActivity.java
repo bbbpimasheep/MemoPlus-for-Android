@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
     MemoAdapter adapter;
     TextView bottomSum;
     ImageButton homeButton, addMemo, aiButton;
-    boolean login = true; // false
+    boolean login = false; // false
     List<MemoItem> MemoList;
     ExecutorService executorService;
     int maxID = -1;
@@ -74,66 +74,57 @@ public class MainActivity extends AppCompatActivity {
         this.homeButton = findViewById(R.id.home_button);
         this.addMemo = findViewById(R.id.add_memo_button);
         this.aiButton = findViewById(R.id.ai_button);
-
         this.MemoList = new ArrayList<>();
-
         Intent getIntent = getIntent();
-        this.login = getIntent.getBooleanExtra("login", true); // false
+        this.login = getIntent.getBooleanExtra("login", false); // false
 
         // new Thread(() -> {noteDao.deleteAllNotes();}).start();
+        this.executorService = Executors.newFixedThreadPool(1);
+        bottomSum.setText("Total: " + MemoList.size() + " memos");
+        setAdapter();
 
-        aiButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, Chat.class);;
-                startActivity(intent);
-            }
+        aiButton.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, Chat.class);;
+            startActivity(intent);
         });
 
-        homeButton.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("RestrictedApi")
-            @Override
-            public void onClick(View v) {
-                Log.d(LOG_TAG, "Home button clicked!");
-                // Intent intent = new Intent(MainActivity.this, PersonalProfile.class);;
-                Intent intent;
-                if(login) intent = new Intent(MainActivity.this, PersonalProfile.class);
-                else intent = new Intent(MainActivity.this, Login.class);
-                startActivity(intent);
-            }
+        homeButton.setOnClickListener(v -> {
+            Log.d(LOG_TAG, "Home button clicked!");
+            Intent intent;
+            if(login) intent = new Intent(MainActivity.this, PersonalProfile.class);
+            else intent = new Intent(MainActivity.this, Login.class);
+            startActivity(intent);
         });
 
-        addMemo.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                ExecutorService localExeService = Executors.newFixedThreadPool(1);
-                localExeService.submit(() -> {
-                    Note newNote = new Note();
-                    maxID += 1;
-                    newNote.title = "New Title " + maxID;
-                    newNote.id = maxID;
-                    Log.d("title-id-new", String.valueOf(maxID));
-                    newNote.type = "Not chosen yet";
-                    String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
-                    newNote.last_edit = "Newly created at " + timeStamp;
-                    newNote.last_save = "";
-                    newNote.files = new ArrayList<>();
-                    String content = "{\"content\": \"Type here.\"," +
-                            "\"type\": \"text\"}";
-                    newNote.files.add(content);
-                    noteDao.insertNote(newNote);
-                    Handler handler = new Handler(Looper.getMainLooper());
-                    handler.post(() -> {
-                        MemoItem item = new MemoItem();
-                        item.title = newNote.title;
-                        item.memo_abstract = "What's going on?";
-                        item.edit_time = newNote.last_edit;
-                        MemoList.add(item);
-                        bottomSum.setText("Total: " + MemoList.size() + " memos");
-                        setAdapter();
-                    });
+        addMemo.setOnClickListener(v -> {
+            ExecutorService localExeService = Executors.newFixedThreadPool(1);
+            localExeService.submit(() -> {
+                Note newNote = new Note();
+                maxID += 1;
+                newNote.title = "New Title " + maxID;
+                newNote.id = maxID;
+                Log.d("title-id-new", String.valueOf(maxID));
+                newNote.type = "Not chosen yet";
+                String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
+                newNote.last_edit = "Newly created at " + timeStamp;
+                newNote.last_save = "";
+                newNote.files = new ArrayList<>();
+                String content = "{\"content\": \"Type here.\"," +
+                        "\"type\": \"text\"}";
+                newNote.files.add(content);
+                noteDao.insertNote(newNote);
+                Handler handler = new Handler(Looper.getMainLooper());
+                handler.post(() -> {
+                    MemoItem item = new MemoItem();
+                    item.title = newNote.title;
+                    item.memo_abstract = "What's going on?";
+                    item.edit_time = newNote.last_edit;
+                    MemoList.add(item);
+                    bottomSum.setText("Total: " + MemoList.size() + " memos");
+                    // setAdapter();
+                    adapter.notifyDataSetChanged();
                 });
-            }
+            });
         });
     }
 
@@ -141,7 +132,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        this.executorService = Executors.newFixedThreadPool(1);
         if (login) {
             executorService.submit(() -> {
                 List<User> users = db.userDao().getAllUsers();
@@ -181,12 +171,10 @@ public class MainActivity extends AppCompatActivity {
                         Log.d("title", String.valueOf(MemoList.size()));
                     }
                     adapter.notifyDataSetChanged();
-                    setAdapter();
+                    bottomSum.setText("Total: " + MemoList.size() + " memos");
                 });
             });
         }
-        bottomSum.setText("Total: " + MemoList.size() + " memos");
-        setAdapter();
     }
 
     public void initializeMain() {
@@ -221,38 +209,6 @@ public class MainActivity extends AppCompatActivity {
         memoRecyclerView.setAdapter(adapter);
         LinearLayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
         memoRecyclerView.setLayoutManager(layoutManager);
-    }
-
-    public static String getCSRFToken() throws IOException, JSONException {
-        URI uri = null;
-        try {
-            uri = new URI(uri_s + "get_csrf_token");
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-            return null;
-        }
-        URL url = uri.toURL();
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setRequestProperty("Accept", "application/json");
-
-        int responseCode = conn.getResponseCode();
-        Log.d("csrf", String.valueOf(responseCode));
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
-                StringBuilder response = new StringBuilder();
-                String responseLine = null;
-                while ((responseLine = br.readLine()) != null) {
-                    response.append(responseLine.trim());
-                }
-                JSONObject jsonResponse = new JSONObject(response.toString());
-                String csrfToken = jsonResponse.getString("csrf_token");
-                System.out.println("CSRF Token: " + csrfToken);
-                return csrfToken;
-            }
-        } else {
-            throw new IOException("Failed to get CSRF token: HTTP error code : " + responseCode);
-        }
     }
 
     class MemoAdapter extends RecyclerView.Adapter<MemoAdapter.MemoViewHolder> {

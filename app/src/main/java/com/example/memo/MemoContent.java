@@ -601,21 +601,24 @@ public class MemoContent extends AppCompatActivity{
     }
 
     public static class AudioViewHolder extends RecyclerView.ViewHolder {
+        Context context;
         ImageButton playButton;
         MediaPlayer mediaPlayer;
         ImageButton delete;
         boolean playing = false;
 
-        public AudioViewHolder(View itemView) {
+        public AudioViewHolder(View itemView, Context context) {
             super(itemView);
-            playButton = itemView.findViewById(R.id.play_button);
-            mediaPlayer = new MediaPlayer();
-            delete = itemView.findViewById(R.id.delete);
+            this.playButton = itemView.findViewById(R.id.play_button);
+            this.mediaPlayer = new MediaPlayer();
+            this.delete = itemView.findViewById(R.id.delete);
+            this.context = context;
         }
 
         public void bind(AudioItem audioItem) {
             playButton.setOnClickListener(v -> {
                 try {
+                    /*
                     if (!playing) {
                         Log.d("audio", "play");
                         mediaPlayer.setDataSource(audioItem.getAudioUri().toString());
@@ -637,11 +640,52 @@ public class MemoContent extends AppCompatActivity{
                         playing = !playing;
                         playButton.setImageResource(R.drawable.ic_play);
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Log.e("audioerror", "IOException during prepare or start: ", e);
-                    if (mediaPlayer != null) mediaPlayer.reset();
-                    playButton.setImageResource(R.drawable.ic_play);
+                    */
+
+                    if (!playing) {
+                        Log.d("audio", "play");
+                        try {
+                            mediaPlayer.reset(); // 重置MediaPlayer以确保不会影响之前的播放
+                            mediaPlayer.setDataSource(context, Uri.parse(audioItem.getAudioUri().toString()));
+                            mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                                @Override
+                                public void onPrepared(MediaPlayer mp) {
+                                    mediaPlayer.start();
+                                }
+                            });
+                            mediaPlayer.setOnCompletionListener(mp -> {
+                                playing = false; // 更新播放状态
+                                playButton.setImageResource(R.drawable.ic_play); // 更改按钮图标
+                                mediaPlayer.reset(); // 重置MediaPlayer
+                                Log.d("audio", "completed");
+                            });
+                            mediaPlayer.prepareAsync(); // 异步准备MediaPlayer
+                            playing = true; // 更新播放状态
+                            Log.d("audio", String.valueOf(playing));
+                            playButton.setImageResource(R.drawable.ic_pause); // 更改按钮图标
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            Log.e("audioerror", "IOException during prepare or start: ", e);
+                            if (mediaPlayer != null) mediaPlayer.reset();
+                            playButton.setImageResource(R.drawable.ic_play);
+                        } catch (IllegalStateException e) {
+                            Log.e("audioerror", "IllegalStateException during prepare or start: ", e);
+                            if (mediaPlayer != null) {
+                                mediaPlayer.reset();
+                                mediaPlayer.release();
+                            }
+                            playButton.setImageResource(R.drawable.ic_play);
+                        }
+                    } else {
+                        Log.d("audio", "pause");
+                        if (mediaPlayer != null) {
+                            mediaPlayer.pause(); // 暂停播放
+                            mediaPlayer.seekTo(0); // 可选：回到音频开始位置
+                        }
+                        playing = false; // 更新播放状态
+                        playButton.setImageResource(R.drawable.ic_play); // 更改按钮图标
+                    }
+
                 } catch (IllegalStateException e) {
                     Log.e("audioerror", "IllegalStateException during prepare or start: ", e);
                     if (mediaPlayer != null) mediaPlayer.reset();
@@ -681,7 +725,7 @@ public class MemoContent extends AppCompatActivity{
                 return new ImageViewHolder(view);
             } else if (viewType == RecyclerViewItem.TYPE_AUDIO) {
                 View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_audio, parent, false);
-                return new AudioViewHolder(view);
+                return new AudioViewHolder(view, context);
             }
             return null;
         }

@@ -2,7 +2,6 @@ package com.example.memo;
 
 import static androidx.core.content.PackageManagerCompat.LOG_TAG;
 
-import static com.example.memo.MainActivity.getCSRFToken;
 import static com.example.memo.MainActivity.uri_s;
 import static com.example.memo.Registration.getToken;
 
@@ -175,11 +174,6 @@ public class EditProfile extends AppCompatActivity {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
-        conn.setDoOutput(true);
         conn.setRequestProperty("Authorization", authToken);
 
         JSONObject jsonInputString = new JSONObject();
@@ -226,11 +220,6 @@ public class EditProfile extends AppCompatActivity {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
-        conn.setDoOutput(true);
         conn.setRequestProperty("Authorization", authToken);
 
         JSONObject jsonInputString = new JSONObject();
@@ -278,11 +267,6 @@ public class EditProfile extends AppCompatActivity {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-
-        String csrfToken = getCSRFToken();
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
-        conn.setDoOutput(true);
         conn.setRequestProperty("Authorization", authToken);
 
         JSONObject jsonInputString = new JSONObject();

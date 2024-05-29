@@ -2,7 +2,6 @@ package com.example.memo;
 
 import static androidx.core.content.PackageManagerCompat.LOG_TAG;
 
-import static com.example.memo.MainActivity.getCSRFToken;
 import static com.example.memo.MainActivity.uri_s;
 
 import android.annotation.SuppressLint;
@@ -39,14 +38,16 @@ import java.util.concurrent.Executors;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+
 public class Registration extends AppCompatActivity {
     // 保存 token 的变量
-    static String token = null, userID, csrfToken;
+    static String token = null;
     Button registerButton;
     ImageButton back2login;
     TextView showID;
     EditText username, password, confirm;
     CircularImageView icon;
+    static ExecutorService executorService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,6 +61,8 @@ public class Registration extends AppCompatActivity {
         this.registerButton = findViewById(R.id.register_button);
         this.showID = findViewById(R.id.show_id);
 
+        this.executorService = Executors.newFixedThreadPool(1);
+
         back2login.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("RestrictedApi")
             @Override
@@ -69,69 +72,62 @@ public class Registration extends AppCompatActivity {
             }
         });
 
-        registerButton.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("SetTextI18n")
-            @Override
-            public void onClick(View v) {
-                String pwdText = password.getText().toString(), conText = confirm.getText().toString();
-                if (pwdText.equals(conText)) {
-                    Log.d("shit", "in");
-                    ExecutorService executor = Executors.newSingleThreadExecutor();
-                    Handler handler = new Handler(Looper.getMainLooper());
-                    executor.execute(new Runnable() {
+        registerButton.setOnClickListener(v -> {
+            String pwdText = password.getText().toString(), conText = confirm.getText().toString();
+            if (pwdText.equals(conText)) {
+                Log.d("shit", "in");
+                try {
+                    sendPOST_register(username.getText().toString(), password.getText().toString(), new OnHttpCallback(){
                         @Override
-                        public void run() {
-                            try {
-                                sendPOST_register(username.getText().toString(), password.getText().toString());
-                                Log.d("csrf", userID);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                            handler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    showID.setText("User ID: " + userID);
-                                }
+                        public void onSuccess(String userID) {
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            handler.post(() -> {
+                                showID.setText("User ID: " + userID);
+                                Log.d("id", userID);
                             });
                         }
+                        @Override
+                        public void onFailure(Exception e) {
+                            e.printStackTrace();
+                            showID.setText("Registration Failure");
+                        }
                     });
-                } else {
-                    confirm.setError("Not match");
-                    confirm.requestFocus();
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
+            } else {
+                confirm.setError("Not match");
+                confirm.requestFocus();
             }
         });
     }
 
-    public static void sendPOST_register(String username, String password) throws IOException, JSONException {
+    public static void sendPOST_register(String username, String password, OnHttpCallback callback)  {
+        executorService.submit(() -> {
+            try {
+                String userID = performNetworkRequest(username, password); // 假设这是获取到的 userID
+                callback.onSuccess(userID);
+            } catch (Exception e) {
+                callback.onFailure(e);
+            }
+        });
+    }
+
+    private static String performNetworkRequest(String username, String password) throws IOException, JSONException {
         URI uri = null;
         try {
             uri = new URI( uri_s + "register");
         } catch (URISyntaxException e) {
             e.printStackTrace();
-            return;
+            return "";
         }
         URL url = uri.toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setConnectTimeout(1000); // 1 seconds
+        conn.setReadTimeout(10000);    // 10 seconds
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
-
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    csrfToken = getCSRFToken();
-                    Log.d("csrf", csrfToken);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-        conn.setRequestProperty("X-CSRFToken", csrfToken);
-        conn.setRequestProperty("Cookie", "csrftoken=" + csrfToken);
-        conn.setDoOutput(true);
 
         String jsonInputString = "{\"username\": \"" + username + "\", \"password\": \"" + password + "\"}";
 
@@ -140,6 +136,7 @@ public class Registration extends AppCompatActivity {
             os.write(input, 0, input.length);
         }
 
+        String userid = "";
         int responseCode = conn.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK) {
             try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
@@ -149,12 +146,15 @@ public class Registration extends AppCompatActivity {
                     response.append(responseLine.trim());
                 }
                 JSONObject jsonResponse = new JSONObject(response.toString());
-                userID = jsonResponse.getString("userID");
+                userid = jsonResponse.getString("userID");
+                Log.d("id-infunc", userid);
             }
         } else {
             Log.d("shit", "POST request not worked");
         }
+        return userid;
     }
+
 
     public static void sendAvatar(ImageView avatar) throws IOException, JSONException {
         URI uri = null;
