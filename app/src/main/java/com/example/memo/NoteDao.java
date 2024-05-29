@@ -33,6 +33,9 @@ public interface NoteDao {
     @Delete
     void deleteNote(Note note);
 
+    @Query("DELETE FROM notes WHERE id = :id")
+    void deleteById(int id);
+
     @Query("UPDATE notes SET files = :files WHERE title = :title")
     void updateFiles(String title, List<String> files);
 }

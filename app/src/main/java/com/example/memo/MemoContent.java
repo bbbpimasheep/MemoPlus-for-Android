@@ -132,6 +132,9 @@ public class MemoContent extends AppCompatActivity{
 
         delete.setOnClickListener(v -> {
             // deleteMemo();
+            executorService.submit(() -> {
+                noteDao.deleteById(noteID);
+            });
             Intent intent13 = new Intent(MemoContent.this, MainActivity.class);
             startActivity(intent13);
         });
@@ -169,7 +172,6 @@ public class MemoContent extends AppCompatActivity{
     }
 
     protected void loadInfo() {
-        super.onResume();
         executorService.submit(() -> {
             if (noteID == -1) {
                 this.note = noteDao.getNoteByTitle(memoTitle);
@@ -237,14 +239,13 @@ public class MemoContent extends AppCompatActivity{
                 contentJSON.add(image);
             } else if (item.getType() == RecyclerViewItem.TYPE_AUDIO) {
                 AudioItem audioItem = (AudioItem) item;
-                String uri = audioItem.getAudioUri().toString();
-                String audio = "{\"content\": \"" + uri + "\"," +
+                String path = audioItem.getAudioPath();
+                String audio = "{\"content\": \"" + path + "\"," +
                         "\"type\": \"audio\"}";
                 contentJSON.add(audio);
             }
 
             updated.files = contentJSON;
-
             String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
             updated.last_edit = timeStamp;
             updated.last_save = lastSave2Cloud;
@@ -297,9 +298,9 @@ public class MemoContent extends AppCompatActivity{
         if (isRecording) {
             stopRecording();
             File audioFile = new File(audioPath);
-            // Uri audioUri = Uri.fromFile(audioFile);
+            Log.d("audio", audioPath);
             addItem(new AudioItem(audioPath));
-            addItem(new TextItem("This is a text item"));
+            addItem(new TextItem(""));
             recorder.setImageResource(R.drawable.ic_microphone);
         } else {
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
@@ -364,7 +365,7 @@ public class MemoContent extends AppCompatActivity{
                 Uri selectedImageUri = data.getData();
                 String local = saveImageToDirectory(selectedImageUri, dir);
                 addItem(new ImageItem(local));
-                addItem(new TextItem("This is a text item"));
+                addItem(new TextItem(""));
                 adapter.notifyDataSetChanged();
             } else if (requestCode == TAKE_PHOTO_REQUEST) {
                 if (data != null && data.getExtras() != null) {
@@ -374,7 +375,7 @@ public class MemoContent extends AppCompatActivity{
                         String path = saveBitmapToDirectory(imageBitmap, dir);
                         // 添加照片项到列表中
                         addItem(new ImageItem(path));
-                        addItem(new TextItem("This is a text item"));
+                        addItem(new TextItem(""));
                     }
                 }
             } else if (requestCode == PICK_AUDIO_REQUEST) {
@@ -382,7 +383,7 @@ public class MemoContent extends AppCompatActivity{
                 Uri audioUri = data.getData();
                 String local = saveAudioToLocalDirectory(audioUri, dir);
                 addItem(new AudioItem(local));
-                addItem(new TextItem("This is a text item"));
+                addItem(new TextItem(""));
             }
         }
     }
@@ -391,7 +392,7 @@ public class MemoContent extends AppCompatActivity{
         File outputFile = null;
         try {
             String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-            outputFile = new File(directory, "image-" + title.getText().toString() + "-" + timeStamp + ".3gp");
+            outputFile = new File(directory, "image-" + title.getText().toString() + "-" + timeStamp + ".jpg");
             FileOutputStream outputStream = new FileOutputStream(outputFile);
             imageBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
             outputStream.close();
@@ -457,6 +458,12 @@ public class MemoContent extends AppCompatActivity{
                 inputStream.close();
             }
         }
+    }
+
+    private void deleteMemo() {
+        executorService.submit(() -> {
+            noteDao.deleteById(noteID);
+        });
     }
 
     private File createImageFile(String photoDirectory) throws IOException {
