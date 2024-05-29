@@ -2,6 +2,8 @@ package com.example.memo;
 
 import static androidx.core.content.PackageManagerCompat.LOG_TAG;
 
+import static com.example.memo.MainActivity.uri_s;
+
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
@@ -25,19 +27,30 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Login extends AppCompatActivity{
     private static AppDatabase db;
+    private UserDao userDao;
+    private NoteDao noteDao;
     ImageButton back2home;
     Button go2regist, login;
     EditText userID, password;
     boolean logined = false;
+    static ExecutorService executorService;
+    String authtoken, username, signature;
+    JSONArray noteList;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
         db = MemoPlus.getInstance().getAppDatabase();
+        userDao = db.userDao();
+        noteDao = db.noteDao();
 
         this.back2home = findViewById(R.id.back_button);
         this.go2regist = findViewById(R.id.register_button);
@@ -45,52 +58,109 @@ public class Login extends AppCompatActivity{
         this.userID = findViewById(R.id.enter_id);
         this.password =findViewById(R.id.enter_password);
 
-        back2home.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("RestrictedApi")
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(Login.this, MainActivity.class);
-                intent.putExtra("login", logined);
-                startActivity(intent);
-            }
+        executorService = Executors.newFixedThreadPool(1);
+
+        back2home.setOnClickListener(v -> {
+            Intent intent = new Intent(Login.this, MainActivity.class);
+            intent.putExtra("login", logined);
+            Log.d("login", String.valueOf(logined));
+            setResult(RESULT_OK, intent);
+            // startActivity(intent);
+            finish();
         });
 
-        go2regist.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("RestrictedApi")
-            @Override
-            public void onClick(View v) {
-                Log.d(LOG_TAG, "Go to Registration button clicked!");
-                Intent intent = new Intent(Login.this, Registration.class);
-                startActivity(intent);
-            }
+        go2regist.setOnClickListener(v -> {
+            Log.d("register", "Go to Registration button clicked!");
+            Intent intent = new Intent(Login.this, Registration.class);
+            startActivity(intent);
         });
 
-        login.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    sendPOST_login(userID.getText().toString(), password.getText().toString());
+        login.setOnClickListener(v -> {
+            sendPOST_login(userID.getText().toString(), password.getText().toString(), new OnHttpCallback(){
+                @Override
+                public void onSuccess(String feedBack) {
                     logined = true;
-                } catch (IOException | JSONException e) {
+                    authtoken = feedBack;
+                    updateUser();
+                    updateNoteDB();
+                    Log.d("login", "win");
+                    logined = true;
+                }
+                @Override
+                public void onFailure(Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        });
+    }
+
+    private void updateNoteDB() {
+        executorService.submit(() -> {
+            noteDao.deleteAllNotes();
+            for (int i = 0; i < noteList.length(); i++) {
+                JSONObject noteC;
+                try {noteC = noteList.getJSONObject(i);}
+                catch (JSONException e) {throw new RuntimeException(e);}
+                Note noteL = new Note();
+                noteL.last_save = "Cloud";
+                try {
+                    noteL.id = noteC.getInt("demosticId");
+                    noteL.title = noteC.getString("title");
+                    noteL.type = noteC.getString("type");
+                    JSONArray fileJson = noteC.getJSONArray("files");
+
+                    List<String> fileList = new ArrayList<>();
+                    for(int j = 0; j < fileJson.length(); j++) {
+                        fileList.add(fileJson.getJSONObject(j).toString());
+                    }
+                    noteL.files = fileList;
+                    noteL.last_edit = "";
+                    noteDao.insertNote(noteL);
+                } catch (JSONException e) {
                     throw new RuntimeException(e);
                 }
             }
         });
     }
 
-    public static void sendPOST_login(String userID, String password) throws IOException, JSONException {
+    private void updateUser() {
+        executorService.submit(() -> {
+            userDao.deleteAllUsers();
+            User syujin = new User();
+            syujin.userID = userID.getText().toString();
+            syujin.password = password.getText().toString();
+            syujin.token = authtoken;
+            syujin.username = username;
+            syujin.signature = signature;
+            userDao.insertUser(syujin);
+        });
+    }
+
+    public void sendPOST_login(String userID, String password, OnHttpCallback callback) {
+        executorService.submit(() -> {
+            try {
+                String token = performLoginRequest(userID, password); // 假设这是获取到的 userID
+                callback.onSuccess(token);
+            } catch (Exception e) {
+                callback.onFailure(e);
+            }
+        });
+    }
+
+    private String performLoginRequest(String userID, String password) throws IOException, JSONException {
         URI uri = null;
         try {
-            uri = new URI("http://localhost:8000/NotepadServer/login");
+            uri = new URI(uri_s + "login");
         } catch (URISyntaxException e) {
             e.printStackTrace();
-            return;
+            return "No token";
         }
         URL url = uri.toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
 
         JSONObject jsonInputString = new JSONObject();
         jsonInputString.put("userID", userID);
@@ -101,6 +171,7 @@ public class Login extends AppCompatActivity{
             os.write(input, 0, input.length);
         }
 
+        String _authToken = "";
         int responseCode = conn.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK) {
             try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
@@ -110,45 +181,27 @@ public class Login extends AppCompatActivity{
                     response.append(responseLine.trim());
                 }
                 JSONObject jsonResponse = new JSONObject(response.toString());
-                String authToken = jsonResponse.getString("token");
-                String username = jsonResponse.getString("username");
+
+                // 获取 token 和对应的用户名
+                _authToken = jsonResponse.getString("token");
+                String _username = jsonResponse.getString("username");
+                if (!_username.equals("")) {this.username = _username;}
+
                 // 检查并获取personalSignature
                 String personalSignature;
-                if (jsonResponse.isNull("personalSignature")) {
-                    personalSignature = "";  // 或者其他默认值
-                } else {
-                    personalSignature = jsonResponse.getString("personalSignature");
-                }
+                if (jsonResponse.isNull("personalSignature")) {personalSignature = "";} // 或者其他默认值
+                else {personalSignature = jsonResponse.getString("personalSignature");}
+                this.signature = personalSignature;
 
                 // 检查并获取noteList
-                JSONArray noteList;
-                if (jsonResponse.isNull("noteList")) {
-                    noteList = new JSONArray();  // 或者其他默认值
-                } else {
-                    noteList = jsonResponse.getJSONArray("noteList");
-                }
+                JSONArray _noteList;
+                if (jsonResponse.isNull("noteList")) {_noteList = new JSONArray();} // 或者其他默认值
+                else {_noteList = jsonResponse.getJSONArray("noteList");}
+                this.noteList = _noteList;
 
-                new Thread(() -> {
-                    User user = new User();
-                    user.username = username;
-                    user.userID = userID;
-                    user.password = password;
-                    user.signature = personalSignature;
-                    user.token = authToken;
-                    db.userDao().insertUser(user);
-
-
-                    /*
-                    List<Note> notes = db.noteDao().getAllNotes();
-                    for (Note n : notes) {
-                        System.out.println("Note: " + n.title + ", Content: " + n.content);
-                    }
-                    */
-                }).start();
-
-                System.out.println("Note List: " + noteList.toString());
-                System.out.println("Token: " + authToken);
-                System.out.println("Username: " + username);
+                System.out.println("Note List: " + _noteList);
+                System.out.println("Token: " + _authToken);
+                System.out.println("Username: " + _username);
                 System.out.println("Personal Signature: " + personalSignature);
             }
         } else {
@@ -161,5 +214,6 @@ public class Login extends AppCompatActivity{
                 System.out.println("Error: " + response.toString());
             }
         }
+        return _authToken;
     }
 }

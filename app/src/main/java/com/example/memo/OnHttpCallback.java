@@ -1,6 +1,6 @@
 package com.example.memo;
 
 public interface OnHttpCallback {
-    void onSuccess(String userID);
+    void onSuccess(String feedBack);
     void onFailure(Exception e);
 }

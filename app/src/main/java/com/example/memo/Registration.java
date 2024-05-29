@@ -61,40 +61,34 @@ public class Registration extends AppCompatActivity {
         this.registerButton = findViewById(R.id.register_button);
         this.showID = findViewById(R.id.show_id);
 
-        this.executorService = Executors.newFixedThreadPool(1);
+        executorService = Executors.newFixedThreadPool(1);
 
-        back2login.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("RestrictedApi")
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(Registration.this, Login.class);
-                startActivity(intent);
-            }
+        back2login.setOnClickListener(v -> {
+            Intent intent = new Intent(Registration.this, Login.class);
+            startActivity(intent);
         });
 
         registerButton.setOnClickListener(v -> {
             String pwdText = password.getText().toString(), conText = confirm.getText().toString();
             if (pwdText.equals(conText)) {
                 Log.d("shit", "in");
-                try {
-                    sendPOST_register(username.getText().toString(), password.getText().toString(), new OnHttpCallback(){
-                        @Override
-                        public void onSuccess(String userID) {
-                            Handler handler = new Handler(Looper.getMainLooper());
-                            handler.post(() -> {
-                                showID.setText("User ID: " + userID);
-                                Log.d("id", userID);
-                            });
-                        }
-                        @Override
-                        public void onFailure(Exception e) {
-                            e.printStackTrace();
-                            showID.setText("Registration Failure");
-                        }
-                    });
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                sendPOST_register(username.getText().toString(), password.getText().toString(), new OnHttpCallback(){
+                    @SuppressLint("SetTextI18n")
+                    @Override
+                    public void onSuccess(String feedBack) {
+                        Handler handler = new Handler(Looper.getMainLooper());
+                        handler.post(() -> {
+                            String userID = feedBack;
+                            showID.setText("User ID: " + userID);
+                            Log.d("id", userID);
+                        });
+                    }
+                    @Override
+                    public void onFailure(Exception e) {
+                        e.printStackTrace();
+                        showID.setText("Registration Failure");
+                    }
+                });
             } else {
                 confirm.setError("Not match");
                 confirm.requestFocus();
@@ -105,7 +99,7 @@ public class Registration extends AppCompatActivity {
     public static void sendPOST_register(String username, String password, OnHttpCallback callback)  {
         executorService.submit(() -> {
             try {
-                String userID = performNetworkRequest(username, password); // 假设这是获取到的 userID
+                String userID = performRegisterRequest(username, password); // 假设这是获取到的 userID
                 callback.onSuccess(userID);
             } catch (Exception e) {
                 callback.onFailure(e);
@@ -113,7 +107,7 @@ public class Registration extends AppCompatActivity {
         });
     }
 
-    private static String performNetworkRequest(String username, String password) throws IOException, JSONException {
+    private static String performRegisterRequest(String username, String password) throws IOException, JSONException {
         URI uri = null;
         try {
             uri = new URI( uri_s + "register");
@@ -128,6 +122,7 @@ public class Registration extends AppCompatActivity {
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
 
         String jsonInputString = "{\"username\": \"" + username + "\", \"password\": \"" + password + "\"}";
 

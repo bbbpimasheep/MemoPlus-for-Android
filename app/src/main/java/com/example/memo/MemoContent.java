@@ -2,6 +2,8 @@ package com.example.memo;
 
 import static androidx.core.content.PackageManagerCompat.LOG_TAG;
 
+import static com.example.memo.MainActivity.uri_s;
+
 import android.Manifest;
 
 import android.annotation.SuppressLint;
@@ -44,17 +46,26 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -77,7 +88,8 @@ public class MemoContent extends AppCompatActivity{
     File dir;
     boolean isRecording = false;
     MediaRecorder Mrecorder = null;
-    String audioPath = null, lastSave2Cloud, type, memoTitle, memoTime;
+    String audioPath = null, lastSave2Cloud, type, memoTitle, memoTime,
+            authToken, userID;
     int noteID = -1;
     Note note = null;
     ExecutorService executorService;
@@ -112,21 +124,10 @@ public class MemoContent extends AppCompatActivity{
 
         Intent intent = getIntent();
         this.memoTitle = intent.getStringExtra("TITLE");
-        title.setText(memoTitle);
         this.memoTime = intent.getStringExtra("TIME");
         this.noteID = intent.getIntExtra("ID", -1);
         assert memoTitle != null;
-        this.dir = new File(MemoContent.this.getFilesDir(), String.valueOf(noteID));
-        Log.d("Files directory", MemoContent.this.getFilesDir().toString());
-        if (!dir.exists()) {
-            // 创建文件夹
-            boolean isDirCreated = dir.mkdir();
-            if (isDirCreated) {
-                Log.d("Directory", "Created Successfully");
-            } else {
-                Log.d("Directory", "Already Exists");
-            }
-        }
+        title.setText(memoTitle);
 
         loadInfo();
 
@@ -173,18 +174,37 @@ public class MemoContent extends AppCompatActivity{
 
     protected void loadInfo() {
         executorService.submit(() -> {
-            if (noteID == -1) {
-                this.note = noteDao.getNoteByTitle(memoTitle);
-                this.noteID = note.id;
-            } else {
-                this.note = noteDao.getNoteByID(noteID);
+            List<User> users = userDao.getAllUsers();
+            User user = users.get(0);
+            if (user != null) {
+                authToken = user.userID;
+                userID = user.userID;
             }
+
+            this.note = noteDao.getNoteByID(noteID);
             this.lastSave2Cloud = note.last_save;
             this.type = note.type;
             Log.d("title-in", note.title);
-
+            if (Objects.equals(lastSave2Cloud, "Cloud")) {
+                try {
+                    fetchFromCLoud();
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+            }
             Handler handler = new Handler(Looper.getMainLooper());
             handler.post(() -> {
+                this.dir = new File(MemoContent.this.getFilesDir(), String.valueOf(noteID));
+                Log.d("Files directory", MemoContent.this.getFilesDir().toString());
+                if (!dir.exists()) {
+                    // 创建文件夹
+                    boolean isDirCreated = dir.mkdir();
+                    if (isDirCreated) {
+                        Log.d("Directory", "Created Successfully");
+                    } else {
+                        Log.d("Directory", "Already Exists");
+                    }
+                }
                 List<String> files = note.files;
                 for(String file: files) {
                     try {
@@ -212,6 +232,108 @@ public class MemoContent extends AppCompatActivity{
         });
     }
 
+    private void fetchFromCLoud() throws JSONException {
+        List<String> files_from_cloud = note.files, files_local = new ArrayList<>();
+        for(String file: files_from_cloud) {
+            if (file != null && !file.isEmpty()) {
+                JSONObject fileJSON = new JSONObject(file);
+                String type = fileJSON.getString("type");
+                if (!type.equals("text")) {
+                    sendPOST_syncDownload(type, fileJSON.getString("content"), new OnHttpCallback(){
+                        @Override
+                        public void onSuccess(String feedBack) {
+                            String localPath = feedBack;
+                            if (type.equals("image")) {
+                                String image = "{\"content\": \"" + localPath + "\"," + "\"type\": \"image\"}";
+                                files_local.add(image);
+                            } else if (type.equals("audio")) {
+                                String audio = "{\"content\": \"" + localPath + "\"," + "\"type\": \"image\"}";
+                                files_local.add(audio);
+                            }
+                        }
+                        @Override
+                        public void onFailure(Exception e) {
+                            e.printStackTrace();
+                        }
+                    });
+                } else {
+                    files_local.add(file);
+                }
+            }
+        }
+    }
+
+    private void sendPOST_syncDownload(String type, String path, OnHttpCallback callback) {
+        executorService.submit(() -> {
+            try {
+                String localPath = performDownloadRequest(type, path); // 假设这是获取到的 userID
+                callback.onSuccess(localPath);
+            } catch (Exception e) {
+                callback.onFailure(e);
+            }
+        });
+    }
+
+    private String performDownloadRequest(String type, String path) throws IOException, JSONException {
+        URI uri = null;
+        try {
+            uri = new URI(uri_s + "syncDownload");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return "";
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json; utf-8");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
+
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("path", path);
+
+        try(OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        
+        String filePath = "";
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                Path p = null;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    p = Paths.get(path);
+                }
+                String filename = "";
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    filename = p.getFileName().toString();
+                }
+                if (!filename.equals("")) {
+                    File file = new File(dir, filename);
+                    FileOutputStream output = new FileOutputStream(file);
+                    filePath = file.getPath();
+                    byte[] buffer = new byte[4096];
+                    int bytesRead = -1;
+                    while ((bytesRead = conn.getInputStream().read(buffer)) != -1) {
+                        output.write(buffer, 0, bytesRead);
+                    }
+                    output.close();
+                }
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
+        return filePath;
+    }
     @SuppressLint("NotifyDataSetChanged")
     private void saveMemo2Local() {
         adapter.notifyDataSetChanged();
@@ -248,7 +370,7 @@ public class MemoContent extends AppCompatActivity{
             updated.files = contentJSON;
             String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
             updated.last_edit = timeStamp;
-            updated.last_save = lastSave2Cloud;
+            updated.last_save = timeStamp;
             updated.type = type;
         }
         executorService.submit(() -> {

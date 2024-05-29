@@ -13,10 +13,10 @@ public interface UserDao {
 
     @Query("SELECT * FROM users")
     List<User> getAllUsers();
-    /*
+    @Query("DELETE FROM users")
+    void deleteAllUsers();
     @Query("SELECT * FROM users WHERE userid = :userId")
     User getUserById(int userId);
-     */
     @Insert
     void insertUser(User user);
     @Update

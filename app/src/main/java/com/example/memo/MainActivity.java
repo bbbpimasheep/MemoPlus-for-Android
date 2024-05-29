@@ -2,6 +2,7 @@ package com.example.memo;
 
 import static androidx.core.content.PackageManagerCompat.LOG_TAG;
 
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.annotation.NonNull;
@@ -44,17 +45,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
+    private static final int REQUEST_CODE = 1;
     AppDatabase db;
     private UserDao userDao;
     private NoteDao noteDao;
-    private static String authToken;
+    private static String authToken, userID;
     RecyclerView memoRecyclerView;
     MemoAdapter adapter;
     TextView bottomSum;
     ImageButton homeButton, addMemo, aiButton;
     boolean login = false; // false
     List<MemoItem> MemoList;
-    ExecutorService executorService;
+    static ExecutorService executorService;
     int maxID = -1;
 
     public static String uri_s = "http://android.xulincaigou.online:8000/NotepadServer/";
@@ -75,13 +77,9 @@ public class MainActivity extends AppCompatActivity {
         this.addMemo = findViewById(R.id.add_memo_button);
         this.aiButton = findViewById(R.id.ai_button);
         this.MemoList = new ArrayList<>();
-        Intent getIntent = getIntent();
-        this.login = getIntent.getBooleanExtra("login", false); // false
 
         // new Thread(() -> {noteDao.deleteAllNotes();}).start();
-        this.executorService = Executors.newFixedThreadPool(1);
-        bottomSum.setText("Total: " + MemoList.size() + " memos");
-        setAdapter();
+        executorService = Executors.newFixedThreadPool(1);
 
         aiButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, Chat.class);;
@@ -93,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
             Intent intent;
             if(login) intent = new Intent(MainActivity.this, PersonalProfile.class);
             else intent = new Intent(MainActivity.this, Login.class);
-            startActivity(intent);
+            startActivityForResult(intent, REQUEST_CODE);
         });
 
         addMemo.setOnClickListener(v -> {
@@ -107,10 +105,9 @@ public class MainActivity extends AppCompatActivity {
                 newNote.type = "Not chosen yet";
                 String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
                 newNote.last_edit = "Newly created at " + timeStamp;
-                newNote.last_save = "";
+                newNote.last_save = "Local";
                 newNote.files = new ArrayList<>();
-                String content = "{\"content\": \"Type here.\"," +
-                        "\"type\": \"text\"}";
+                String content = "{\"content\": \"Type here.\"," + "\"type\": \"text\"}";
                 newNote.files.add(content);
                 noteDao.insertNote(newNote);
                 Handler handler = new Handler(Looper.getMainLooper());
@@ -119,10 +116,10 @@ public class MainActivity extends AppCompatActivity {
                     item.title = newNote.title;
                     item.memo_abstract = "What's going on?";
                     item.edit_time = newNote.last_edit;
+                    item.labelNoteID = newNote.id;
                     MemoList.add(item);
-                    bottomSum.setText("Total: " + MemoList.size() + " memos");
-                    // setAdapter();
                     adapter.notifyDataSetChanged();
+                    bottomSum.setText("Total: " + MemoList.size() + " memos");
                 });
             });
         });
@@ -134,66 +131,35 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         if (login) {
             executorService.submit(() -> {
-                List<User> users = db.userDao().getAllUsers();
-                if (!users.isEmpty()) authToken = users.get(0).userID;
+                List<User> users = userDao.getAllUsers();
+                User user = users.get(0);
+                if (user != null) {
+                    authToken = user.userID;
+                    userID = user.userID;
+                }
                 List<Note> notes = noteDao.getAllNotes();
                 if (notes.isEmpty()) {
                     Log.d("notes", "files list is empty");
                     initializeMain();
+                } else {
+                    Handler handler = new Handler(Looper.getMainLooper());
+                    handler.post(() -> {
+                        fetchFromLocal(notes);
+                        setAdapter();
+                        bottomSum.setText("Total: " + MemoList.size() + " memos");
+                    });
                 }
-                Handler handler = new Handler(Looper.getMainLooper());
-                handler.post(() -> {
-                    MemoList.clear();
-                    for(Note note: notes) {
-                        if (note.id > maxID) {
-                            maxID = note.id;
-                        }
-                        Log.d("title-id-main", String.valueOf(maxID));
-                        MemoItem item = new MemoItem();
-                        item.title = note.title;
-                        Log.d("title", note.title);
-                        item.edit_time = note.last_edit;
-                        String abs = "";
-                        try {
-                            if (!note.files.isEmpty()) {
-                                JSONObject jsonAbs = new JSONObject(note.files.get(0));
-                                abs = jsonAbs.getString("content");
-                            }
-                        } catch (JSONException e) {
-                            throw new RuntimeException(e);
-                        }
-                        if (abs.length() > 36) {
-                            abs = abs.substring(0,36);
-                        }
-                        item.memo_abstract = abs + "...";
-                        item.type = note.type;
-                        MemoList.add(item);
-                        Log.d("title", String.valueOf(MemoList.size()));
-                    }
-                    adapter.notifyDataSetChanged();
-                    bottomSum.setText("Total: " + MemoList.size() + " memos");
-                });
             });
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     public void initializeMain() {
-        executorService.submit(() -> {
-            // 插入Note的逻辑
-            Note newNote = new Note();
-            // 设置Note的属性
-            noteDao.insertNote(newNote);
-
-            // 插入完成后更新UI
-            runOnUiThread(() -> {
-                // 更新UI逻辑
-            });
-        });
         Note Intro = new Note();
         Intro.title = "Intro: Start your own Memo+";
         String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
         Intro.last_edit = "Newly created at " + timeStamp;
-        Intro.last_save = "";
+        Intro.last_save = "Local";
         Intro.type = "Introduction";
         Intro.id = 0;
         String content = "{\"content\": \"Try our new functions from the advancing AI. Basic functions can be adopted by pressing buttons below.\"," +
@@ -202,6 +168,46 @@ public class MainActivity extends AppCompatActivity {
         Intro.files = new ArrayList<>();
         Intro.files.add(content);
         noteDao.insertNote(Intro);
+        Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(() -> {
+            List<Note> onlyOne = new ArrayList<>();
+            onlyOne.add(Intro);
+            fetchFromLocal(onlyOne);
+            setAdapter();
+            adapter.notifyDataSetChanged();
+        });
+    }
+
+    void fetchFromLocal(List<Note> notes) {
+        MemoList.clear();
+        Log.d("notes", String.valueOf(notes.size()));
+        for(Note note: notes) {
+            if (note.id > maxID) {
+                maxID = note.id;
+            }
+            Log.d("title-id-main", String.valueOf(maxID));
+            MemoItem item = new MemoItem();
+            item.title = note.title;
+            Log.d("title", note.title);
+            item.edit_time = note.last_edit;
+            String abs = "";
+            try {
+                if (!note.files.isEmpty()) {
+                    JSONObject jsonAbs = new JSONObject(note.files.get(0));
+                    abs = jsonAbs.getString("content");
+                }
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+            if (abs.length() > 36) {
+                abs = abs.substring(0,36);
+            }
+            item.memo_abstract = abs + "...";
+            item.type = note.type;
+            item.labelNoteID = note.id;
+            MemoList.add(item);
+            Log.d("title", String.valueOf(MemoList.size()));
+        }
     }
 
     public void setAdapter() {
@@ -210,6 +216,19 @@ public class MainActivity extends AppCompatActivity {
         LinearLayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
         memoRecyclerView.setLayoutManager(layoutManager);
     }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQUEST_CODE) {
+            if (resultCode == RESULT_OK && data != null) {
+                this.login = data.getBooleanExtra("login", false);
+                Log.d("home-login", String.valueOf(this.login));
+            }
+        }
+    }
+
 
     class MemoAdapter extends RecyclerView.Adapter<MemoAdapter.MemoViewHolder> {
         LayoutInflater inflater;
@@ -236,14 +255,13 @@ public class MainActivity extends AppCompatActivity {
             holder.abstractView.setText(item.memo_abstract);
             holder.timeView.setText("Last edit: " + item.edit_time);
             holder.type.setText(item.type);
-            holder.background.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Intent intent = new Intent(context, MemoContent.class);
-                    intent.putExtra("TITLE", holder.titleView.getText().toString());
-                    intent.putExtra("TIME", holder.timeView.getText().toString());
-                    context.startActivity(intent);
-                }
+            holder.noteID = item.labelNoteID;
+            holder.background.setOnClickListener(v -> {
+                Intent intent = new Intent(context, MemoContent.class);
+                intent.putExtra("TITLE", holder.titleView.getText().toString());
+                intent.putExtra("TIME", holder.timeView.getText().toString());
+                intent.putExtra("ID", item.labelNoteID);
+                context.startActivity(intent);
             });
         }
 
@@ -260,6 +278,7 @@ public class MainActivity extends AppCompatActivity {
             ImageView typeIcon;
             TextView type;
             TextView background;
+            int noteID = -1;
 
             public MemoViewHolder(@NonNull View itemView) {
                 super(itemView);
