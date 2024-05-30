@@ -132,11 +132,13 @@ public class MainActivity extends AppCompatActivity {
         if (login) {
             executorService.submit(() -> {
                 List<User> users = userDao.getAllUsers();
-                User user = users.get(0);
-                if (user != null) {
+                if (users != null) {
+                    User user = users.get(0);
+                    login = true;
                     authToken = user.userID;
                     userID = user.userID;
                 }
+                //if (login) {
                 List<Note> notes = noteDao.getAllNotes();
                 if (notes.isEmpty()) {
                     Log.d("notes", "files list is empty");
@@ -149,6 +151,7 @@ public class MainActivity extends AppCompatActivity {
                         bottomSum.setText("Total: " + MemoList.size() + " memos");
                     });
                 }
+                //}
             });
         }
     }

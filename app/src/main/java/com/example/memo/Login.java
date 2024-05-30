@@ -105,6 +105,7 @@ public class Login extends AppCompatActivity{
     private void updateNoteDB() {
         executorService.submit(() -> {
             noteDao.deleteAllNotes();
+            Log.d("note-list", String.valueOf(noteList));
             for (int i = 0; i < noteList.length(); i++) {
                 JSONObject noteC;
                 try {noteC = noteList.getJSONObject(i);}
@@ -115,7 +116,7 @@ public class Login extends AppCompatActivity{
                     noteL.id = noteC.getInt("demosticId");
                     noteL.title = noteC.getString("title");
                     noteL.type = noteC.getString("type");
-                    JSONArray fileJson = noteC.getJSONArray("files");
+                    JSONArray fileJson = noteC.getJSONArray("file");
 
                     List<String> fileList = new ArrayList<>();
                     for(int j = 0; j < fileJson.length(); j++) {
@@ -145,14 +146,12 @@ public class Login extends AppCompatActivity{
     }
 
     public void sendPOST_login(String userID, String password, OnHttpCallback callback) {
-        executorService.submit(() -> {
-            try {
-                String token = performLoginRequest(userID, password); // 假设这是获取到的 userID
-                callback.onSuccess(token);
-            } catch (Exception e) {
-                callback.onFailure(e);
-            }
-        });
+        try {
+            String token = performLoginRequest(userID, password); // 假设这是获取到的 userID
+            callback.onSuccess(token);
+        } catch (Exception e) {
+            callback.onFailure(e);
+        }
     }
 
     private String performLoginRequest(String userID, String password) throws IOException, JSONException {
