@@ -68,7 +68,6 @@ public class Login extends AppCompatActivity{
             intent.putExtra("login", logined);
             Log.d("login", String.valueOf(logined));
             setResult(RESULT_OK, intent);
-            // startActivity(intent);
             finish();
         });
 
@@ -89,16 +88,15 @@ public class Login extends AppCompatActivity{
                         updateNoteDB();
                         Log.d("login", "win");
                         logined = true;
+                        Handler handler = new Handler(Looper.getMainLooper());
+                        handler.post(() -> {Toast.makeText(Login.this, "Login success", Toast.LENGTH_SHORT).show();});
                     }
                     @Override
                     public void onFailure(Exception e) {
                         e.printStackTrace();
+                        Handler handler = new Handler(Looper.getMainLooper());
+                        handler.post(() -> {Toast.makeText(Login.this, "Login failed. Please retry.", Toast.LENGTH_SHORT).show();});
                     }
-                });
-                Handler handler = new Handler(Looper.getMainLooper());
-                handler.post(() -> {
-                    if (logined) Toast.makeText(Login.this, "Login success", Toast.LENGTH_SHORT).show();
-                    else Toast.makeText(Login.this, "Login failed. Please retry.", Toast.LENGTH_SHORT).show();
                 });
             });
         });

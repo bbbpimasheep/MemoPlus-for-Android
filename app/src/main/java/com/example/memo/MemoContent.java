@@ -380,16 +380,14 @@ public class MemoContent extends AppCompatActivity{
                 TextItem textItem = (TextItem) item;
                 String text = null;
                 if (!textItem.getText().isEmpty()) {
-                    text = "{\"content\": \"" + textItem.getText() + "\"," +
-                            "\"type\": \"text\"}";
+                    text = "{\"content\": \"" + textItem.getText() + "\"," + "\"type\": \"text\"}";
                     contentJSON.add(text);
                 }
             } else if (item.getType() == RecyclerViewItem.TYPE_IMAGE) {
                 ImageItem imageItem = (ImageItem) item;
                 String path = imageItem.getImagePath();
                 Log.d("note-type", path);
-                String image = "{\"content\": \"" + path + "\"," +
-                        "\"type\": \"image\"}";
+                String image = "{\"content\": \"" + path + "\"," + "\"type\": \"image\"}";
                 contentJSON.add(image);
             } else if (item.getType() == RecyclerViewItem.TYPE_AUDIO) {
                 AudioItem audioItem = (AudioItem) item;
@@ -435,6 +433,7 @@ public class MemoContent extends AppCompatActivity{
             }
         });
     }
+
     public String performUploadRequest(String userID, String title, String type, int demosticId) throws IOException, JSONException {
         File parentDirectory = this.dir;
         if (!parentDirectory.exists() || !parentDirectory.isDirectory() || Objects.requireNonNull(parentDirectory.listFiles()).length == 0){
@@ -572,6 +571,7 @@ public class MemoContent extends AppCompatActivity{
                 System.out.println("Error: " + response.toString());
             }
         }
+        Log.d("delete", "done");
     }
 
     private void addItem(RecyclerViewItem item) { adapter.addItem(item); }
