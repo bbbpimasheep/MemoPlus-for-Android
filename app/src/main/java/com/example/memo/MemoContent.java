@@ -17,6 +17,7 @@ import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.media.browse.MediaBrowser;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -43,6 +44,7 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -55,10 +57,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
@@ -88,8 +94,13 @@ public class MemoContent extends AppCompatActivity{
     File dir;
     boolean isRecording = false;
     MediaRecorder Mrecorder = null;
-    String audioPath = null, lastSave2Cloud, type, memoTitle, memoTime,
-            authToken, userID;
+    String audioPath = null;
+    String lastSave2Cloud;
+    String type;
+    String memoTitle;
+    String memoTime;
+    static String authToken;
+    String userID;
     int noteID = -1;
     Note note = null;
     ExecutorService executorService;
@@ -129,16 +140,22 @@ public class MemoContent extends AppCompatActivity{
         assert memoTitle != null;
         title.setText(memoTitle);
 
+        loadInfo();
+
         delete.setOnClickListener(v -> {
             // deleteMemo();
             executorService.submit(() -> {
                 noteDao.deleteById(noteID);
             });
             Intent intent13 = new Intent(MemoContent.this, MainActivity.class);
+            if (this.dir != null) {this.dir.delete();}
             startActivity(intent13);
         });
 
-        save.setOnClickListener(v -> saveMemo2Local());
+        save.setOnClickListener(v -> {
+            saveMemo2Local();
+            saveMemo2Cloud();
+        });
 
         back2home.setOnClickListener(v -> {
             Log.d("back", "Back button clicked!");
@@ -174,7 +191,7 @@ public class MemoContent extends AppCompatActivity{
     @Override
     protected void onResume() {
         super.onResume();
-        loadInfo();
+        // loadInfo();
     }
 
     protected void loadInfo() {
@@ -182,16 +199,17 @@ public class MemoContent extends AppCompatActivity{
             List<User> users = userDao.getAllUsers();
             User user = users.get(0);
             if (user != null) {
-                authToken = user.userID;
+                authToken = user.token;
+                Log.d("auth", authToken);
                 userID = user.userID;
             }
-
             this.note = noteDao.getNoteByID(noteID);
             Log.d("tags", note.type);
             this.lastSave2Cloud = note.last_save;
+            Log.d("upload", note.last_save);
             this.type = note.type;
             Log.d("title-in", note.title);
-            if (Objects.equals(lastSave2Cloud, "Cloud")) {
+            if (lastSave2Cloud.equals("Cloud")) {
                 try {
                     fetchFromCLoud();
                 } catch (JSONException e) {
@@ -234,6 +252,7 @@ public class MemoContent extends AppCompatActivity{
                 if (adapter.items.isEmpty()) {
                     addItem(new TextItem("Type here."));
                 }
+                addItem(new TextItem(""));
                 recyclerView.setAdapter(adapter);
             });
         });
@@ -268,6 +287,8 @@ public class MemoContent extends AppCompatActivity{
                 }
             }
         }
+        note.files = files_local;
+        noteDao.updateNote(note);
     }
 
     private void sendPOST_syncDownload(String type, String path, OnHttpCallback callback) {
@@ -341,14 +362,14 @@ public class MemoContent extends AppCompatActivity{
         }
         return filePath;
     }
+
     @SuppressLint("NotifyDataSetChanged")
     private void saveMemo2Local() {
-        adapter.notifyDataSetChanged();
+        // adapter.notifyDataSetChanged();
         Note updated = new Note();
         updated.id = noteID;
         updated.title = title.getText().toString();
         Log.d("title", updated.title);
-
         List<String> contentJSON = new ArrayList<>();
         for (RecyclerViewItem item : adapter.items) {
             if (item.getType() == RecyclerViewItem.TYPE_TEXT) {
@@ -373,7 +394,6 @@ public class MemoContent extends AppCompatActivity{
                         "\"type\": \"audio\"}";
                 contentJSON.add(audio);
             }
-
             updated.files = contentJSON;
             String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
             updated.last_edit = timeStamp;
@@ -384,6 +404,123 @@ public class MemoContent extends AppCompatActivity{
             // 执行后台任务
             noteDao.updateNote(updated);
         });
+    }
+
+    private void saveMemo2Cloud() {
+        executorService.submit(() -> {
+            sendPOST_uploadNote(userID, title.getText().toString(), type, noteID, new OnHttpCallback() {
+                @Override
+                public void onSuccess(String feedBack) {
+                    if (feedBack.equals("Success")) Log.d("upload", "finish");
+                }
+                @Override
+                public void onFailure(Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        });
+    }
+
+    private void sendPOST_uploadNote(String userID, String title, String type, int demosticId, OnHttpCallback callback) {
+        executorService.submit(() -> {
+            try {
+                String feedback = performUploadRequest(userID, title, type, demosticId); // 假设这是获取到的 userID
+                callback.onSuccess(feedback);
+            } catch (Exception e) {
+                callback.onFailure(e);
+            }
+        });
+    }
+    public String performUploadRequest(String userID, String title, String type, int demosticId) throws IOException, JSONException {
+        File parentDirectory = this.dir;
+        if (!parentDirectory.exists() || !parentDirectory.isDirectory() || Objects.requireNonNull(parentDirectory.listFiles()).length == 0){
+            System.out.println("Parent directory does not exist");
+            return "";
+        }
+        URI uri = null;
+        try {
+            uri = new URI(uri_s + "createNote");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return "";
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
+
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        jsonInputString.put("title", title);
+        jsonInputString.put("type", type);
+        jsonInputString.put("demosticId", demosticId);
+
+        // Generate uploadFileListJson dynamically based on the files in parentDirectory
+        JSONArray uploadFileListJson = new JSONArray();
+        for (File file : Objects.requireNonNull(parentDirectory.listFiles())) {
+            JSONObject fileJson = new JSONObject();
+            fileJson.put("content", "./userData/" + file.getName());
+            if (file.getName().endsWith(".jpg")) {
+                fileJson.put("type", "image");
+            } else {
+                fileJson.put("type", "audio");
+            }
+            uploadFileListJson.put(fileJson);
+        }
+        jsonInputString.put("uploadFileListJson", uploadFileListJson);
+
+        String boundary = Long.toHexString(System.currentTimeMillis());
+        conn.setRequestProperty("Content-Type", "multipart/form-data; charset=utf-8; boundary=" + boundary);
+
+        try (OutputStream output = conn.getOutputStream(); PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, "UTF-8"), true)) {
+            // Send JSON data.
+            writer.append("--").append(boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"json\"").append("\r\n");
+            writer.append("Content-Type: application/json; charset=UTF-8").append("\r\n");
+            writer.append("\r\n");
+            writer.append(jsonInputString.toString()).append("\r\n").flush();
+
+            // Send binary file.
+            for (File uploadFile: Objects.requireNonNull(parentDirectory.listFiles())) {
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"").append(uploadFile.getName()).append("\"").append("\r\n");
+                writer.append("Content-Type: ").append(URLConnection.guessContentTypeFromName(uploadFile.getName())).append("\r\n");
+                writer.append("Content-Transfer-Encoding: binary").append("\r\n");
+                writer.append("\r\n").flush();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    Files.copy(uploadFile.toPath(), output);
+                }
+                output.flush(); // Important before continuing with writer!
+                writer.append("\r\n").flush(); // CRLF is important! It indicates end of binary boundary.
+            }
+
+            // End of multipart/form-data.
+            writer.append("--").append(boundary).append("--").append("\r\n").flush();
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println(response.toString());
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
+        return "Success";
     }
 
     private void addItem(RecyclerViewItem item) { adapter.addItem(item); }
@@ -493,9 +630,9 @@ public class MemoContent extends AppCompatActivity{
                 assert data != null;
                 Uri selectedImageUri = data.getData();
                 String local = saveImageToDirectory(selectedImageUri, dir);
+                Log.d("image-path", local);
                 addItem(new ImageItem(local));
                 addItem(new TextItem(""));
-                adapter.notifyDataSetChanged();
             } else if (requestCode == TAKE_PHOTO_REQUEST) {
                 if (data != null && data.getExtras() != null) {
                     Bitmap imageBitmap = (Bitmap) data.getExtras().get("data");
@@ -514,6 +651,7 @@ public class MemoContent extends AppCompatActivity{
                 addItem(new AudioItem(local));
                 addItem(new TextItem(""));
             }
+            adapter.notifyDataSetChanged();
         }
     }
 
@@ -747,30 +885,6 @@ public class MemoContent extends AppCompatActivity{
         public void bind(AudioItem audioItem) {
             playButton.setOnClickListener(v -> {
                 try {
-                    /*
-                    if (!playing) {
-                        Log.d("audio", "play");
-                        mediaPlayer.setDataSource(audioItem.getAudioUri().toString());
-                        mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-                            @Override
-                            public void onPrepared(MediaPlayer mp) {
-                                mediaPlayer.start();
-                            }
-                        });
-                        mediaPlayer.setOnCompletionListener(mp -> {
-                            mediaPlayer.reset();
-                        });
-                        playing = !playing;
-                        Log.d("audio", String.valueOf(playing));
-                        playButton.setImageResource(R.drawable.ic_pause);
-                    } else {
-                        Log.d("audio", "pause");
-                        if (mediaPlayer != null) mediaPlayer.reset();
-                        playing = !playing;
-                        playButton.setImageResource(R.drawable.ic_play);
-                    }
-                    */
-
                     if (!playing) {
                         Log.d("audio", "play");
                         try {
@@ -889,9 +1003,12 @@ public class MemoContent extends AppCompatActivity{
 
     protected void onPause() {
         super.onPause();
+    }
+
+    protected void onStop() {
+        super.onStop();
         // 保存数据
         saveMemo2Local();
-        // saveMemo2Cloud();
-
+        saveMemo2Cloud();
     }
 }
