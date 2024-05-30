@@ -143,12 +143,16 @@ public class MemoContent extends AppCompatActivity{
         loadInfo();
 
         delete.setOnClickListener(v -> {
-            // deleteMemo();
             executorService.submit(() -> {
                 noteDao.deleteById(noteID);
+                try {
+                    sendPOST_deleteNote(userID, noteID);
+                } catch (IOException | JSONException e) {
+                    throw new RuntimeException(e);
+                }
             });
-            Intent intent13 = new Intent(MemoContent.this, MainActivity.class);
             if (this.dir != null) {this.dir.delete();}
+            Intent intent13 = new Intent(MemoContent.this, MainActivity.class);
             startActivity(intent13);
         });
 
@@ -521,6 +525,53 @@ public class MemoContent extends AppCompatActivity{
             }
         }
         return "Success";
+    }
+
+    public static void sendPOST_deleteNote(String userID, int demosticId) throws IOException, JSONException {
+        URI uri = null;
+        try {
+            uri = new URI(uri_s + "deleteNote");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json; utf-8");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
+
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        jsonInputString.put("demosticId", demosticId);
+
+        try(OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println(response.toString());
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
+        }
     }
 
     private void addItem(RecyclerViewItem item) { adapter.addItem(item); }

@@ -7,6 +7,8 @@ import static com.example.memo.MainActivity.uri_s;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -77,22 +79,27 @@ public class Login extends AppCompatActivity{
         });
 
         login.setOnClickListener(v -> {
-            sendPOST_login(userID.getText().toString(), password.getText().toString(), new OnHttpCallback(){
-                @Override
-                public void onSuccess(String feedBack) {
-                    logined = true;
-                    authtoken = feedBack;
-                    updateUser();
-                    updateNoteDB();
-                    Log.d("login", "win");
-                    logined = true;
-                    // Toast.makeText(Login.this, "Login success", Toast.LENGTH_SHORT).show();
-                }
-                @Override
-                public void onFailure(Exception e) {
-                    // Toast.makeText(Login.this, "Login failed. Please retry.", Toast.LENGTH_SHORT).show();
-                    e.printStackTrace();
-                }
+            executorService.submit(() -> {
+                sendPOST_login(userID.getText().toString(), password.getText().toString(), new OnHttpCallback(){
+                    @Override
+                    public void onSuccess(String feedBack) {
+                        logined = true;
+                        authtoken = feedBack;
+                        updateUser();
+                        updateNoteDB();
+                        Log.d("login", "win");
+                        logined = true;
+                    }
+                    @Override
+                    public void onFailure(Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+                Handler handler = new Handler(Looper.getMainLooper());
+                handler.post(() -> {
+                    if (logined) Toast.makeText(Login.this, "Login success", Toast.LENGTH_SHORT).show();
+                    else Toast.makeText(Login.this, "Login failed. Please retry.", Toast.LENGTH_SHORT).show();
+                });
             });
         });
     }
