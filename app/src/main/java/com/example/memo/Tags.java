@@ -72,11 +72,14 @@ public class Tags extends AppCompatActivity {
         setAdapter();
 
         backButton.setOnClickListener(v -> {
+            /*
             Intent intent1 = new Intent(Tags.this, MemoContent.class);
             intent1.putExtra("TITLE", memoTitle);
             intent1.putExtra("TIME", memoTime);
             intent1.putExtra("ID", noteID);
-            startActivity(intent1);
+            setResult(RESULT_OK, intent);
+             */
+            finish();
         });
 
         setTag.setOnClickListener(v -> {
@@ -88,9 +91,9 @@ public class Tags extends AppCompatActivity {
                     Handler handler = new Handler(Looper.getMainLooper());
                     handler.post(() -> {
                         memoType = inputTag.getText().toString();
+                        showTag.setText("Tag: " + inputTag.getText().toString());
                     });
                 });
-                showTag.setText("Tag: " + inputTag.getText().toString());
             }
         });
     }
@@ -128,13 +131,6 @@ public class Tags extends AppCompatActivity {
             holder.tagDisplay.setText(tag);
 
             holder.tagDisplay.setOnClickListener(v -> {
-                /*
-                Intent intent = new Intent(context, MemoContent.class);
-                intent.putExtra("TITLE", holder.titleView.getText().toString());
-                intent.putExtra("TIME", holder.timeView.getText().toString());
-                context.startActivity(intent);
-                */
-                // setTag();
                 inputTag.setText(holder.tagDisplay.getText().toString());
             });
 

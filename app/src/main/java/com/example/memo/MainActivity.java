@@ -175,6 +175,7 @@ public class MainActivity extends AppCompatActivity {
             fetchFromLocal(onlyOne);
             setAdapter();
             adapter.notifyDataSetChanged();
+            bottomSum.setText("Total: " + MemoList.size() + " memos");
         });
     }
 
@@ -204,6 +205,7 @@ public class MainActivity extends AppCompatActivity {
             }
             item.memo_abstract = abs + "...";
             item.type = note.type;
+            Log.d("type", note.type);
             item.labelNoteID = note.id;
             MemoList.add(item);
             Log.d("title", String.valueOf(MemoList.size()));
@@ -220,7 +222,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
         if (requestCode == REQUEST_CODE) {
             if (resultCode == RESULT_OK && data != null) {
                 this.login = data.getBooleanExtra("login", false);

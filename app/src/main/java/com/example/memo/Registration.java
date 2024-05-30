@@ -63,10 +63,7 @@ public class Registration extends AppCompatActivity {
 
         executorService = Executors.newFixedThreadPool(1);
 
-        back2login.setOnClickListener(v -> {
-            Intent intent = new Intent(Registration.this, Login.class);
-            startActivity(intent);
-        });
+        back2login.setOnClickListener(v -> {finish();});
 
         registerButton.setOnClickListener(v -> {
             String pwdText = password.getText().toString(), conText = confirm.getText().toString();
@@ -86,7 +83,10 @@ public class Registration extends AppCompatActivity {
                     @Override
                     public void onFailure(Exception e) {
                         e.printStackTrace();
-                        showID.setText("Registration Failure");
+                        Handler handler = new Handler(Looper.getMainLooper());
+                        handler.post(() -> {
+                            showID.setText("Registration Failure");
+                        });
                     }
                 });
             } else {
@@ -117,8 +117,8 @@ public class Registration extends AppCompatActivity {
         }
         URL url = uri.toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setConnectTimeout(1000); // 1 seconds
-        conn.setReadTimeout(10000);    // 10 seconds
+        // conn.setConnectTimeout(1000); // 1 seconds
+        // conn.setReadTimeout(10000);    // 10 seconds
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");

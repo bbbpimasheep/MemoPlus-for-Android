@@ -12,6 +12,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -85,9 +86,11 @@ public class Login extends AppCompatActivity{
                     updateNoteDB();
                     Log.d("login", "win");
                     logined = true;
+                    // Toast.makeText(Login.this, "Login success", Toast.LENGTH_SHORT).show();
                 }
                 @Override
                 public void onFailure(Exception e) {
+                    // Toast.makeText(Login.this, "Login failed. Please retry.", Toast.LENGTH_SHORT).show();
                     e.printStackTrace();
                 }
             });

@@ -129,8 +129,6 @@ public class MemoContent extends AppCompatActivity{
         assert memoTitle != null;
         title.setText(memoTitle);
 
-        loadInfo();
-
         delete.setOnClickListener(v -> {
             // deleteMemo();
             executorService.submit(() -> {
@@ -172,6 +170,13 @@ public class MemoContent extends AppCompatActivity{
         });
     }
 
+    @SuppressLint("NotifyDataSetChanged")
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadInfo();
+    }
+
     protected void loadInfo() {
         executorService.submit(() -> {
             List<User> users = userDao.getAllUsers();
@@ -182,6 +187,7 @@ public class MemoContent extends AppCompatActivity{
             }
 
             this.note = noteDao.getNoteByID(noteID);
+            Log.d("tags", note.type);
             this.lastSave2Cloud = note.last_save;
             this.type = note.type;
             Log.d("title-in", note.title);
@@ -206,6 +212,7 @@ public class MemoContent extends AppCompatActivity{
                     }
                 }
                 List<String> files = note.files;
+                adapter.items.clear();
                 for(String file: files) {
                     try {
                         if (file != null && !file.isEmpty()){
