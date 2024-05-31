@@ -2,42 +2,40 @@ package com.example.memo;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+
+import static com.example.memo.MainActivity.uri_s;
 
 public class Chat extends AppCompatActivity {
-    private RecyclerView recyclerView;
-    private MessageAdapter messageAdapter;
-    private List<Message> messageList;
-    private EditText messageInput;
-    private Button sendButton;
     private ImageButton back2Home;
+    private String messageText;
+    private TextView messageTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
 
-        recyclerView = findViewById(R.id.recyclerView);
-        messageInput = findViewById(R.id.messageInput);
-        sendButton = findViewById(R.id.sendButton);
         back2Home = findViewById(R.id.back_button);
+        messageTextView = findViewById(R.id.messageText);
 
-        messageList = new ArrayList<>();
-        messageAdapter = new MessageAdapter(this, messageList);
-
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(messageAdapter);
+        messageText = "正在为您准备个性推荐……";
+        messageTextView.setText(messageText);
 
         back2Home.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -46,28 +44,54 @@ public class Chat extends AppCompatActivity {
                 startActivity(intent);
             }
         });
-
-        sendButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String messageText = messageInput.getText().toString();
-                if (!messageText.isEmpty()) {
-                    messageList.add(new Message(messageText, Message.TYPE_SENT));
-                    messageAdapter.notifyItemInserted(messageList.size() - 1);
-                    recyclerView.scrollToPosition(messageList.size() - 1);
-                    messageInput.setText("");
-
-                    // Simulate receiving a message
-                    new Handler().postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            messageList.add(new Message("Received: " + messageText, Message.TYPE_RECEIVED));
-                            messageAdapter.notifyItemInserted(messageList.size() - 1);
-                            recyclerView.scrollToPosition(messageList.size() - 1);
-                        }
-                    }, 1000);
-                }
-            }
-        });
     }
+
+    public void sendPOST_return_personalized_recommendation(String userID) throws
+            IOException {
+        URI uri = null;
+        try {
+            uri = new URI(uri_s + "return_personalized_recommendation");
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+            return;
+        }
+        URL url = uri.toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json; utf-8");
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setDoOutput(true);
+
+        JSONObject jsonInputString = new JSONObject();
+        // 这里我怎么把userID拿到手？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
+        //jsonInputString.put("userID", userID);
+
+        try(OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                messageTextView.setText(response.toString());
+            }
+        } else {
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                messageTextView.setText("Error: " + response.toString());
+            }
+        }
+    }
+
 }
