@@ -213,26 +213,27 @@ public class MemoContent extends AppCompatActivity{
             Log.d("upload", note.last_save);
             this.type = note.type;
             Log.d("title-in", note.title);
+            this.dir = new File(MemoContent.this.getFilesDir(), String.valueOf(noteID));
+            Log.d("Files directory", String.valueOf(this.dir));
+            if (!dir.exists()) {
+                // 创建文件夹
+                boolean isDirCreated = dir.mkdir();
+                if (isDirCreated) {
+                    Log.d("Directory", "Created Successfully");
+                } else {
+                    Log.d("Directory", "Already Exists");
+                }
+            }
             if (lastSave2Cloud.equals("Cloud")) {
                 try {
                     fetchFromCLoud();
+                    Log.d("cloud", "cloud");
                 } catch (JSONException e) {
                     throw new RuntimeException(e);
                 }
             }
             Handler handler = new Handler(Looper.getMainLooper());
             handler.post(() -> {
-                this.dir = new File(MemoContent.this.getFilesDir(), String.valueOf(noteID));
-                Log.d("Files directory", MemoContent.this.getFilesDir().toString());
-                if (!dir.exists()) {
-                    // 创建文件夹
-                    boolean isDirCreated = dir.mkdir();
-                    if (isDirCreated) {
-                        Log.d("Directory", "Created Successfully");
-                    } else {
-                        Log.d("Directory", "Already Exists");
-                    }
-                }
                 List<String> files = note.files;
                 adapter.items.clear();
                 for(String file: files) {
@@ -296,14 +297,12 @@ public class MemoContent extends AppCompatActivity{
     }
 
     private void sendPOST_syncDownload(String type, String path, OnHttpCallback callback) {
-        executorService.submit(() -> {
-            try {
-                String localPath = performDownloadRequest(type, path); // 假设这是获取到的 userID
-                callback.onSuccess(localPath);
-            } catch (Exception e) {
-                callback.onFailure(e);
-            }
-        });
+        try {
+            String localPath = performDownloadRequest(type, path); // 假设这是获取到的 userID
+            callback.onSuccess(localPath);
+        } catch (Exception e) {
+            callback.onFailure(e);
+        }
     }
 
     private String performDownloadRequest(String type, String path) throws IOException, JSONException {
@@ -330,7 +329,7 @@ public class MemoContent extends AppCompatActivity{
             os.write(input, 0, input.length);
         }
         
-        String filePath = "";
+        String filePath = null;
         int responseCode = conn.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK) {
             try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
@@ -342,10 +341,12 @@ public class MemoContent extends AppCompatActivity{
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     filename = p.getFileName().toString();
                 }
+                Log.d("path", filename);
                 if (!filename.equals("")) {
                     File file = new File(dir, filename);
                     FileOutputStream output = new FileOutputStream(file);
                     filePath = file.getPath();
+                    Log.d("path", filePath);
                     byte[] buffer = new byte[4096];
                     int bytesRead = -1;
                     while ((bytesRead = conn.getInputStream().read(buffer)) != -1) {
@@ -424,14 +425,14 @@ public class MemoContent extends AppCompatActivity{
     }
 
     private void sendPOST_uploadNote(String userID, String title, String type, int demosticId, OnHttpCallback callback) {
-        executorService.submit(() -> {
+        // executorService.submit(() -> {
             try {
                 String feedback = performUploadRequest(userID, title, type, demosticId); // 假设这是获取到的 userID
                 callback.onSuccess(feedback);
             } catch (Exception e) {
                 callback.onFailure(e);
             }
-        });
+        // });
     }
 
     public String performUploadRequest(String userID, String title, String type, int demosticId) throws IOException, JSONException {
