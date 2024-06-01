@@ -49,25 +49,23 @@ public class PersonalProfile extends AppCompatActivity {
 
         executorService = Executors.newFixedThreadPool(1);
 
-        displayInfo();
-
         backButton.setOnClickListener(v -> {
             Log.d(LOG_TAG, "Back button clicked!");
-            // Intent intent = new Intent(PersonalProfile.this, MainActivity.class);
-            // intent.putExtra("login", true);
-            // startActivity(intent);
             finish();
         });
 
         editProfile.setOnClickListener(v -> {
             Log.d(LOG_TAG, "Back button clicked!");
             Intent intent = new Intent(PersonalProfile.this, EditProfile.class);
-            // intent.putExtra("name", nameView.getText().toString());
-            // intent.putExtra("ID", IDView.getText().toString());
-            // intent.putExtra("signature", signView.getText().toString());
-            // intent.putExtra("password", password);
             startActivity(intent);
         });
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    @Override
+    protected void onResume() {
+        super.onResume();
+        displayInfo();
     }
 
     private void displayInfo() {

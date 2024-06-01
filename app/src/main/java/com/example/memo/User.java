@@ -29,4 +29,8 @@ public class User {
 
     @ColumnInfo(name = "avatar")
     public String avatar;
+
+    public User() {
+        userID = "";
+    }
 }

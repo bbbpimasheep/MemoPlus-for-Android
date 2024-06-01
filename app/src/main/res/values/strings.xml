@@ -25,7 +25,7 @@
     <string name="edit_signature">苟利国家生死以，岂因祸福避趋之</string>
     <string name="hint_edit_signature">*no more than 20 characters</string>
     <string name="hint_search">Search</string>
-    <string name="default_type">Default Type</string>
+    <string name="default_type">Experiment</string>
     <string name="set_id_hint">*your email address</string>
     <string name="sign_in">Sign In</string>
     <string name="login_title">Login / Sign up</string>

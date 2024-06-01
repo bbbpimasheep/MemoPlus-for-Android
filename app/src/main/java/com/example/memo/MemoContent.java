@@ -76,6 +76,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MemoContent extends AppCompatActivity{
+    private static final int SET_TAG_CODE = 10;
     private static AppDatabase db;
     private UserDao userDao;
     private NoteDao noteDao;
@@ -137,6 +138,7 @@ public class MemoContent extends AppCompatActivity{
         this.memoTitle = intent.getStringExtra("TITLE");
         this.memoTime = intent.getStringExtra("TIME");
         this.noteID = intent.getIntExtra("ID", -1);
+        this.type = intent.getStringExtra("TAG");
         assert memoTitle != null;
         title.setText(memoTitle);
 
@@ -163,8 +165,7 @@ public class MemoContent extends AppCompatActivity{
 
         back2home.setOnClickListener(v -> {
             Log.d("back", "Back button clicked!");
-            Intent intent12 = new Intent(MemoContent.this, MainActivity.class);
-            startActivity(intent12);
+            finish();
         });
 
         picture.setOnClickListener(this::selectPic);
@@ -185,17 +186,9 @@ public class MemoContent extends AppCompatActivity{
             Intent intent1 = new Intent(MemoContent.this, Tags.class);
             intent1.putExtra("TITLE", title.getText().toString());
             intent1.putExtra("TIME", memoTime);
-            intent1.putExtra("TYPE", type);
             intent1.putExtra("ID", noteID);
-            startActivity(intent1);
+            startActivityForResult(intent1, SET_TAG_CODE);
         });
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // loadInfo();
     }
 
     protected void loadInfo() {
@@ -211,8 +204,8 @@ public class MemoContent extends AppCompatActivity{
             Log.d("tags", note.type);
             this.lastSave2Cloud = note.last_save;
             Log.d("upload", note.last_save);
-            this.type = note.type;
-            Log.d("title-in", note.title);
+            // this.type = note.type;
+            Log.d("ttype-in", note.type);
             this.dir = new File(MemoContent.this.getFilesDir(), String.valueOf(noteID));
             Log.d("Files directory", String.valueOf(this.dir));
             if (!dir.exists()) {
@@ -253,9 +246,6 @@ public class MemoContent extends AppCompatActivity{
                     } catch (JSONException e) {
                         throw new RuntimeException(e);
                     }
-                }
-                if (adapter.items.isEmpty()) {
-                    addItem(new TextItem("Type here."));
                 }
                 addItem(new TextItem(""));
                 recyclerView.setAdapter(adapter);
@@ -702,6 +692,9 @@ public class MemoContent extends AppCompatActivity{
                 String local = saveAudioToLocalDirectory(audioUri, dir);
                 addItem(new AudioItem(local));
                 addItem(new TextItem(""));
+            } else if (requestCode == SET_TAG_CODE) {
+                assert data != null;
+                type = data.getStringExtra("TAG");
             }
             adapter.notifyDataSetChanged();
         }
@@ -1055,12 +1048,14 @@ public class MemoContent extends AppCompatActivity{
 
     protected void onPause() {
         super.onPause();
+        saveMemo2Local();
+        saveMemo2Cloud();
     }
 
     protected void onStop() {
         super.onStop();
         // 保存数据
-        saveMemo2Local();
-        saveMemo2Cloud();
+        // saveMemo2Local();
+        // saveMemo2Cloud();
     }
 }

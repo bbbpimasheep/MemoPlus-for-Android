@@ -39,6 +39,7 @@ public class Tags extends AppCompatActivity {
     TagAdapter adapter;
     String memoTitle, memoTime, memoType;
     private NoteDao noteDao;
+    Note note;
     int noteID;
     @SuppressLint("SetTextI18n")
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,7 +53,6 @@ public class Tags extends AppCompatActivity {
         this.memoTitle = intent.getStringExtra("TITLE");
         this.memoTime = intent.getStringExtra("TIME");
         this.noteID = intent.getIntExtra("ID", 0);
-        this.memoType = intent.getStringExtra("TYPE");
 
         this.backButton = findViewById(R.id.back_button);
         this.setTag = findViewById(R.id.set_tag_button);
@@ -61,6 +61,14 @@ public class Tags extends AppCompatActivity {
         this.tagRecyclerView = findViewById(R.id.recycler_view);
 
         this.executorService = Executors.newFixedThreadPool(1);
+        executorService.submit(() -> {
+            this.note = noteDao.getNoteByID(noteID);
+            memoType = note.type;
+            Handler handler = new Handler(Looper.getMainLooper());
+            handler.post(() -> {
+                showTag.setText("Tag: " + memoType);
+            });
+        });
 
         showTag.setText("Tag: " + memoType);
         this.tagList = new ArrayList<>();
@@ -72,32 +80,26 @@ public class Tags extends AppCompatActivity {
         setAdapter();
 
         backButton.setOnClickListener(v -> {
-            /*
             Intent intent1 = new Intent(Tags.this, MemoContent.class);
-            intent1.putExtra("TITLE", memoTitle);
-            intent1.putExtra("TIME", memoTime);
-            intent1.putExtra("ID", noteID);
-            setResult(RESULT_OK, intent);
-             */
+            intent1.putExtra("TAG", memoType);
+            setResult(RESULT_OK, intent1);
             finish();
         });
 
         setTag.setOnClickListener(v -> {
             if (!inputTag.getText().toString().isEmpty()) {
                 executorService.submit(() -> {
-                    Note note = noteDao.getNoteByID(noteID);
-                    note.type = inputTag.getText().toString();
+                    memoType = inputTag.getText().toString();
+                    note.type = memoType;
                     noteDao.updateNote(note);
                     Handler handler = new Handler(Looper.getMainLooper());
                     handler.post(() -> {
-                        memoType = inputTag.getText().toString();
-                        showTag.setText("Tag: " + inputTag.getText().toString());
+                        showTag.setText("Tag: " + memoType);
                     });
                 });
             }
         });
     }
-
 
     public void setAdapter() {
         this.adapter = new Tags.TagAdapter(Tags.this, this.tagList);
