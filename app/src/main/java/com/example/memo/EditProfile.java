@@ -12,6 +12,8 @@ import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Parcelable;
 import android.util.Log;
 import android.view.View;
@@ -32,6 +34,9 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class EditProfile extends AppCompatActivity {
     private static AppDatabase db;
@@ -44,7 +49,9 @@ public class EditProfile extends AppCompatActivity {
     CircularImageView iconView;
     String userName, userID, password, signature;
     Parcelable iconUrl;
+    ExecutorService executorService;
 
+    @SuppressLint("RestrictedApi")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -65,6 +72,8 @@ public class EditProfile extends AppCompatActivity {
         db = MemoPlus.getInstance().getAppDatabase();
         userDao = db.userDao();
 
+        executorService = Executors.newFixedThreadPool(1);
+
         Intent intent = getIntent();
         userName = intent.getStringExtra("name");
         editName.setText(userName);
@@ -75,89 +84,89 @@ public class EditProfile extends AppCompatActivity {
         signature = intent.getStringExtra("signature");
         editSign.setText(signature);
 
-        new Thread(() -> {
-            authToken = db.userDao().getToken(userID);
-        }).start();
+        initializeInfo();
 
-        cancelButton.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("RestrictedApi")
-            @Override
-            public void onClick(View v) {
-                Log.d(LOG_TAG, "Cancel button clicked!");
-                Intent intent = new Intent(EditProfile.this, PersonalProfile.class);
-                startActivity(intent);
-            }
+        cancelButton.setOnClickListener(v -> {
+            Log.d(LOG_TAG, "Cancel button clicked!");
+            // Intent intent = new Intent(EditProfile.this, PersonalProfile.class);
+            // startActivity(intent);
+            finish();
         });
 
-        setNameButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        setNameButton.setOnClickListener(v -> {
+            executorService.submit(() -> {
                 try {
                     sendPOST_changeUsername(userID, editName.getText().toString());
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            // 更新用户的名称
-                            userDao.updateUsername(userID, editName.getText().toString());
-                        }
-                    }).start();
                 } catch (IOException | JSONException e) {
                     throw new RuntimeException(e);
                 }
-            }
+                Handler handler = new Handler(Looper.getMainLooper());
+                handler.post(() -> {
+                    userDao.updateUsername(userID, editName.getText().toString());
+                });
+            });
         });
 
-        setPwdButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    String newPassword = newPwd.getText().toString();
-                    if (!password.equals(newPassword)) {
+        setPwdButton.setOnClickListener(v -> {
+            String newPassword = newPwd.getText().toString();
+            if (!password.equals(newPassword)) {
+                executorService.submit(() -> {
+                    try {
                         sendPOST_changePassword(userID, password, newPassword);
-                        new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                // 更新用户的名称
-                                userDao.updatePassword(userID, newPassword);
-                            }
-                        }).start();
-                    } else {
-                        newPwd.setError("Same!");
-                        newPwd.requestFocus();
+                    } catch (IOException | JSONException e) {
+                        throw new RuntimeException(e);
                     }
-                } catch (IOException | JSONException e) {
-                    throw new RuntimeException(e);
-                }
+                    Handler handler = new Handler(Looper.getMainLooper());
+                    handler.post(() -> {
+                        userDao.updatePassword(userID, newPassword);
+                    });
+                });
+            } else {
+                newPwd.setError("Same!");
+                newPwd.requestFocus();
             }
         });
 
-        setSignButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        setSignButton.setOnClickListener(v -> {
+            executorService.submit(() -> {
                 try {
                     sendPOST_changePersonalSignature(userID, editSign.getText().toString());
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            // 更新用户的名称
-                            userDao.updateSignature(userID, editSign.getText().toString());
-                        }
-                    }).start();
                 } catch (IOException | JSONException e) {
                     throw new RuntimeException(e);
                 }
-            }
+                Handler handler = new Handler(Looper.getMainLooper());
+                handler.post(() -> {
+                    userDao.updateSignature(userID, editSign.getText().toString());
+                });
+            });
         });
 
-        setAvatarButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    changeAvatar(iconView);
-                } catch (IOException | JSONException e) {
-                    throw new RuntimeException(e);
-                }
+        setAvatarButton.setOnClickListener(v -> {
+            try {
+                changeAvatar(iconView);
+            } catch (IOException | JSONException e) {
+                throw new RuntimeException(e);
             }
+        });
+    }
+
+    private void initializeInfo() {
+        executorService.submit(() -> {
+            User user = userDao.getAllUsers().get(0);
+            authToken = user.token;
+            String iconPath = "NoPath";
+            if (!Objects.equals(user.avatar, "Null")) {
+                // iconPath = downloadIcon();
+            }
+            Handler handler = new Handler(Looper.getMainLooper());
+            handler.post(() -> {
+                editName.setText(user.username);
+                IDView.setText(user.userID);
+                editSign.setText(user.signature);
+                if (!iconPath.equals("NoPath")) {
+                    // bindIcon(iconPath);
+                }
+            });
         });
     }
 
