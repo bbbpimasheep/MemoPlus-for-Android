@@ -1,12 +1,8 @@
 package com.example.memo;
 
-import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import java.util.List;
 
@@ -14,7 +10,6 @@ import java.util.List;
 public class Note {
     @PrimaryKey
     @ColumnInfo(name = "id")
-    @NonNull
     public int id;
 
     @ColumnInfo(name = "title")

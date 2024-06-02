@@ -102,13 +102,13 @@ public class MainActivity extends AppCompatActivity {
                 newNote.title = "New Title " + maxID;
                 newNote.id = maxID;
                 Log.d("title-id-new", String.valueOf(maxID));
-                newNote.type = "Not chosen yet";
+                newNote.type = "Default Type";
                 String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
                 newNote.last_edit = "Newly created at " + timeStamp;
                 newNote.last_save = "Local";
                 newNote.files = new ArrayList<>();
-                String content = "{\"content\": \"Type here.\"," + "\"type\": \"text\"}";
-                newNote.files.add(content);
+                // String content = "{\"content\": \"Type here.\"," + "\"type\": \"text\"}";
+                // newNote.files.add(content);
                 noteDao.insertNote(newNote);
                 Handler handler = new Handler(Looper.getMainLooper());
                 handler.post(() -> {
@@ -117,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
                     item.memo_abstract = "What's going on?";
                     item.edit_time = newNote.last_edit;
                     item.labelNoteID = newNote.id;
+                    item.type = newNote.type;
                     MemoList.add(item);
                     adapter.notifyDataSetChanged();
                     bottomSum.setText("Total: " + MemoList.size() + " memos");
@@ -129,7 +130,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (login) {
+        // if (login) {
             executorService.submit(() -> {
                 List<User> users = userDao.getAllUsers();
                 if (users != null) {
@@ -138,22 +139,22 @@ public class MainActivity extends AppCompatActivity {
                     authToken = user.userID;
                     userID = user.userID;
                 }
-                //if (login) {
-                List<Note> notes = noteDao.getAllNotes();
-                if (notes.isEmpty()) {
-                    Log.d("notes", "files list is empty");
-                    initializeMain();
-                } else {
-                    Handler handler = new Handler(Looper.getMainLooper());
-                    handler.post(() -> {
-                        fetchFromLocal(notes);
-                        setAdapter();
-                        bottomSum.setText("Total: " + MemoList.size() + " memos");
-                    });
+                if (login) {
+                    List<Note> notes = noteDao.getAllNotes();
+                    if (notes.isEmpty()) {
+                        Log.d("notes", "files list is empty");
+                        initializeMain();
+                    } else {
+                        Handler handler = new Handler(Looper.getMainLooper());
+                        handler.post(() -> {
+                            fetchFromLocal(notes);
+                            setAdapter();
+                            bottomSum.setText("Total: " + MemoList.size() + " memos");
+                        });
+                    }
                 }
-                //}
             });
-        }
+        // }
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -264,6 +265,8 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent(context, MemoContent.class);
                 intent.putExtra("TITLE", holder.titleView.getText().toString());
                 intent.putExtra("TIME", holder.timeView.getText().toString());
+                intent.putExtra("TAG", holder.type.getText().toString());
+                Log.d("type-show", holder.type.getText().toString());
                 intent.putExtra("ID", item.labelNoteID);
                 context.startActivity(intent);
             });

@@ -12,6 +12,8 @@ import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Parcelable;
 import android.util.Log;
 import android.view.View;
@@ -19,6 +21,7 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONObject;
 import org.json.JSONException;
@@ -32,6 +35,9 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class EditProfile extends AppCompatActivity {
     private static AppDatabase db;
@@ -44,7 +50,9 @@ public class EditProfile extends AppCompatActivity {
     CircularImageView iconView;
     String userName, userID, password, signature;
     Parcelable iconUrl;
+    ExecutorService executorService;
 
+    @SuppressLint("RestrictedApi")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -65,109 +73,127 @@ public class EditProfile extends AppCompatActivity {
         db = MemoPlus.getInstance().getAppDatabase();
         userDao = db.userDao();
 
-        Intent intent = getIntent();
-        userName = intent.getStringExtra("name");
-        editName.setText(userName);
-        userID = intent.getStringExtra("ID");
-        IDView.setText(userID);
-        password = intent.getStringExtra("password");
-        oldPwd.setText(password);
-        signature = intent.getStringExtra("signature");
-        editSign.setText(signature);
+        executorService = Executors.newFixedThreadPool(1);
 
-        new Thread(() -> {
-            authToken = db.userDao().getToken(userID);
-        }).start();
+        initializeInfo();
 
-        cancelButton.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("RestrictedApi")
-            @Override
-            public void onClick(View v) {
-                Log.d(LOG_TAG, "Cancel button clicked!");
-                Intent intent = new Intent(EditProfile.this, PersonalProfile.class);
-                startActivity(intent);
-            }
+        cancelButton.setOnClickListener(v -> {
+            Log.d(LOG_TAG, "Cancel button clicked!");
+            finish();
         });
 
-        setNameButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    sendPOST_changeUsername(userID, editName.getText().toString());
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            // 更新用户的名称
+        setNameButton.setOnClickListener(v -> {
+            executorService.submit(() -> {
+                sendPOST_changeUsername(userID, editName.getText().toString(), new OnHttpCallback(){
+                    @Override
+                    public void onSuccess(String feedBack) {
+                        if (Objects.equals(feedBack, "Success")) {
                             userDao.updateUsername(userID, editName.getText().toString());
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            handler.post(() -> {Toast.makeText(EditProfile.this, "OK", Toast.LENGTH_SHORT).show();});
                         }
-                    }).start();
-                } catch (IOException | JSONException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-
-        setPwdButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    String newPassword = newPwd.getText().toString();
-                    if (!password.equals(newPassword)) {
-                        sendPOST_changePassword(userID, password, newPassword);
-                        new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                // 更新用户的名称
-                                userDao.updatePassword(userID, newPassword);
-                            }
-                        }).start();
-                    } else {
-                        newPwd.setError("Same!");
-                        newPwd.requestFocus();
                     }
-                } catch (IOException | JSONException e) {
-                    throw new RuntimeException(e);
-                }
-            }
+                    @Override
+                    public void onFailure(Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+            });
         });
 
-        setSignButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    sendPOST_changePersonalSignature(userID, editSign.getText().toString());
-                    new Thread(new Runnable() {
+        setPwdButton.setOnClickListener(v -> {
+            String newPassword = newPwd.getText().toString();
+            if (!password.equals(newPassword)) {
+                executorService.submit(() -> {
+                    sendPOST_changePassword(userID, password, newPassword, new OnHttpCallback(){
                         @Override
-                        public void run() {
-                            // 更新用户的名称
-                            userDao.updateSignature(userID, editSign.getText().toString());
+                        public void onSuccess(String feedBack) {
+                            if (Objects.equals(feedBack, "Success")) {
+                                userDao.updatePassword(userID, newPassword);
+                                Handler handler = new Handler(Looper.getMainLooper());
+                                handler.post(() -> {Toast.makeText(EditProfile.this, "OK", Toast.LENGTH_SHORT).show();});
+                            }
                         }
-                    }).start();
-                } catch (IOException | JSONException e) {
-                    throw new RuntimeException(e);
-                }
+                        @Override
+                        public void onFailure(Exception e) {
+                            e.printStackTrace();
+                        }
+                    });
+                });
+            } else {
+                newPwd.setError("Same!");
+                newPwd.requestFocus();
             }
         });
 
-        setAvatarButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    changeAvatar(iconView);
-                } catch (IOException | JSONException e) {
-                    throw new RuntimeException(e);
-                }
+        setSignButton.setOnClickListener(v -> {
+            executorService.submit(() -> {
+                sendPOST_changePersonalSignature(userID, editSign.getText().toString(), new OnHttpCallback(){
+                    @Override
+                    public void onSuccess(String feedBack) {
+                        if (Objects.equals(feedBack, "Success")) {
+                            userDao.updateSignature(userID, editSign.getText().toString());
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            handler.post(() -> {Toast.makeText(EditProfile.this, "OK", Toast.LENGTH_SHORT).show();});
+                        }
+                    }
+                    @Override
+                    public void onFailure(Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+            });
+        });
+
+        setAvatarButton.setOnClickListener(v -> {
+            try {
+                changeAvatar(iconView);
+            } catch (IOException | JSONException e) {
+                throw new RuntimeException(e);
             }
         });
     }
 
-    public static void sendPOST_changeUsername(String userID, String newName) throws IOException, JSONException {
+    private void initializeInfo() {
+        executorService.submit(() -> {
+            User user = userDao.getAllUsers().get(0);
+            authToken = user.token;
+            password = user.password;
+            userID = user.userID;
+            String iconPath = "NoPath";
+            if (!Objects.equals(user.avatar, "Null")) {
+                // iconPath = downloadIcon();
+            }
+            Handler handler = new Handler(Looper.getMainLooper());
+            handler.post(() -> {
+                editName.setText(user.username);
+                IDView.setText(user.userID);
+                oldPwd.setText(user.password);
+                editSign.setText(user.signature);
+                if (!iconPath.equals("NoPath")) {
+                    // bindIcon(iconPath);
+                }
+            });
+        });
+    }
+
+    public static void sendPOST_changeUsername(String userID, String newName, OnHttpCallback callback) {
+        try {
+            String feedBack = performChangeUsername(userID, newName); // 假设这是获取到的 userID
+            callback.onSuccess(feedBack);
+        } catch (Exception e) {
+            callback.onFailure(e);
+        }
+    }
+
+    private static String performChangeUsername(String userID, String newName) throws IOException, JSONException {
+        Log.d("change-name", newName);
         URI uri = null;
         try {
-            uri = new URI( uri_s + "register");
+            uri = new URI( uri_s + "changeUsername");
         } catch (URISyntaxException e) {
             e.printStackTrace();
-            return;
+            return "";
         }
         URL url = uri.toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -194,6 +220,8 @@ public class EditProfile extends AppCompatActivity {
                     response.append(responseLine.trim());
                 }
                 System.out.println(response.toString());
+                Log.d("change-name", response.toString());
+                return "Success";
             }
         } else {
             try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
@@ -205,15 +233,26 @@ public class EditProfile extends AppCompatActivity {
                 System.out.println("Error: " + response.toString());
             }
         }
+        return "Failed";
     }
 
-    public static void sendPOST_changePassword(String userID, String oldPassword, String newPassword) throws IOException, JSONException {
+    public static void sendPOST_changePassword(String userID, String oldPassword, String newPassword, OnHttpCallback callback) {
+        try {
+            String feedBack = performChangePassword(userID, oldPassword, newPassword); // 假设这是获取到的 userID
+            callback.onSuccess(feedBack);
+        } catch (Exception e) {
+            callback.onFailure(e);
+        }
+    }
+
+    private static String performChangePassword(String userID, String oldPassword, String newPassword) throws IOException, JSONException {
+        Log.d("change-pwd", oldPassword);
         URI uri = null;
         try {
-            uri = new URI( uri_s + "register");
+            uri = new URI( uri_s + "changePassword");
         } catch (URISyntaxException e) {
             e.printStackTrace();
-            return;
+            return "";
         }
         URL url = uri.toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -241,6 +280,7 @@ public class EditProfile extends AppCompatActivity {
                     response.append(responseLine.trim());
                 }
                 System.out.println(response.toString());
+                return "Success";
             }
         } else {
             try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
@@ -252,15 +292,25 @@ public class EditProfile extends AppCompatActivity {
                 System.out.println("Error: " + response.toString());
             }
         }
+        return "Failed";
     }
 
-    public static void sendPOST_changePersonalSignature(String userID, String newSignature) throws IOException, JSONException {
+    public static void sendPOST_changePersonalSignature(String userID, String newSignature, OnHttpCallback callback) {
+        try {
+            String feedBack = performChangeSignature(userID, newSignature); // 假设这是获取到的 userID
+            callback.onSuccess(feedBack);
+        } catch (Exception e) {
+            callback.onFailure(e);
+        }
+    }
+
+    private static String performChangeSignature(String userID, String newSignature) throws IOException, JSONException {
         URI uri = null;
         try {
-            uri = new URI( uri_s + "register");
+            uri = new URI( uri_s + "changePersonalSignature");
         } catch (URISyntaxException e) {
             e.printStackTrace();
-            return;
+            return "";
         }
         URL url = uri.toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -271,7 +321,7 @@ public class EditProfile extends AppCompatActivity {
 
         JSONObject jsonInputString = new JSONObject();
         jsonInputString.put("userID", userID);
-        jsonInputString.put("PersonalSignature", newSignature);
+        jsonInputString.put("newPersonalSignature", newSignature);
 
         try(OutputStream os = conn.getOutputStream()) {
             byte[] input = jsonInputString.toString().getBytes("utf-8");
@@ -287,6 +337,7 @@ public class EditProfile extends AppCompatActivity {
                     response.append(responseLine.trim());
                 }
                 System.out.println(response.toString());
+                return "Success";
             }
         } else {
             try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
@@ -298,6 +349,7 @@ public class EditProfile extends AppCompatActivity {
                 System.out.println("Error: " + response.toString());
             }
         }
+        return "Failed";
     }
 
     public static void changeAvatar(ImageView avatar) throws IOException, JSONException {
