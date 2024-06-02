@@ -204,8 +204,6 @@ public class MemoContent extends AppCompatActivity{
             Log.d("tags", note.type);
             this.lastSave2Cloud = note.last_save;
             Log.d("upload", note.last_save);
-            // this.type = note.type;
-            Log.d("ttype-in", note.type);
             this.dir = new File(MemoContent.this.getFilesDir(), String.valueOf(noteID));
             Log.d("Files directory", String.valueOf(this.dir));
             if (!dir.exists()) {

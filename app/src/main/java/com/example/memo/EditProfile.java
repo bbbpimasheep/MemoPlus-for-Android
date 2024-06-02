@@ -9,7 +9,10 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
+import android.content.ContentResolver;
 import android.graphics.Bitmap;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.content.Intent;
 import android.os.Handler;
@@ -28,13 +31,22 @@ import org.json.JSONException;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
+import java.nio.file.Files;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -48,9 +60,10 @@ public class EditProfile extends AppCompatActivity {
     EditText editName, oldPwd, newPwd, editSign;
     TextView IDView;
     CircularImageView iconView;
-    String userName, userID, password, signature;
+    String userName, userID, password, signature, newAvatarPath = "Old";
     Parcelable iconUrl;
     ExecutorService executorService;
+    File dir;
 
     @SuppressLint("RestrictedApi")
     @Override
@@ -69,6 +82,17 @@ public class EditProfile extends AppCompatActivity {
         this.oldPwd = findViewById(R.id.old_password);
         this.newPwd = findViewById(R.id.new_password);
         this.editSign = findViewById(R.id.signature);
+
+        this.dir = EditProfile.this.getFilesDir();
+        if (!dir.exists()) {
+            // 创建文件夹
+            boolean isDirCreated = dir.mkdir();
+            if (isDirCreated) {
+                Log.d("Directory", "Created Successfully");
+            } else {
+                Log.d("Directory", "Already Exists");
+            }
+        }
 
         db = MemoPlus.getInstance().getAppDatabase();
         userDao = db.userDao();
@@ -146,10 +170,23 @@ public class EditProfile extends AppCompatActivity {
         });
 
         setAvatarButton.setOnClickListener(v -> {
-            try {
-                changeAvatar(iconView);
-            } catch (IOException | JSONException e) {
-                throw new RuntimeException(e);
+            if (!Objects.equals(newAvatarPath, "Old")) {
+                executorService.submit(() -> {
+                    sendPOST_changeAvatar(userID, newAvatarPath, new OnHttpCallback(){
+                        @Override
+                        public void onSuccess(String feedBack) {
+                            if (Objects.equals(feedBack, "Success")) {
+                                User syujin = userDao.getAllUsers().get(0);
+                                syujin.avatar = "Aru";
+                                userDao.updateUser(syujin);
+                                Handler handler = new Handler(Looper.getMainLooper());
+                                handler.post(() -> {Toast.makeText(EditProfile.this, "OK", Toast.LENGTH_SHORT).show();});
+                            }
+                        }
+                        @Override
+                        public void onFailure(Exception e) {e.printStackTrace();}
+                    });
+                });
             }
         });
     }
@@ -160,19 +197,13 @@ public class EditProfile extends AppCompatActivity {
             authToken = user.token;
             password = user.password;
             userID = user.userID;
-            String iconPath = "NoPath";
-            if (!Objects.equals(user.avatar, "Null")) {
-                // iconPath = downloadIcon();
-            }
+            signature = user.signature;
             Handler handler = new Handler(Looper.getMainLooper());
             handler.post(() -> {
                 editName.setText(user.username);
                 IDView.setText(user.userID);
                 oldPwd.setText(user.password);
                 editSign.setText(user.signature);
-                if (!iconPath.equals("NoPath")) {
-                    // bindIcon(iconPath);
-                }
             });
         });
     }
@@ -352,30 +383,63 @@ public class EditProfile extends AppCompatActivity {
         return "Failed";
     }
 
-    public static void changeAvatar(ImageView avatar) throws IOException, JSONException {
+    public static void sendPOST_changeAvatar(String userID, String filePath, OnHttpCallback callback) {
+        try {
+            String feedBack = performChangeAvatar(userID, filePath); // 假设这是获取到的 userID
+            callback.onSuccess(feedBack);
+        } catch (Exception e) {
+            callback.onFailure(e);
+        }
+    }
+
+    private static String performChangeAvatar(String userID, String filePath) throws IOException, JSONException {
+        File newAvatar = new File(filePath);
+        if (!newAvatar.exists()){
+            System.out.println("Avatar does not exist");
+            return "Failed";
+        }
+
         URI uri = null;
         try {
-            uri = new URI(uri_s);
+            uri = new URI(uri_s + "changeAvatar");
         } catch (URISyntaxException e) {
             e.printStackTrace();
-            return;
+            return "Failed";
         }
         URL url = uri.toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
-        conn.setRequestProperty("Content-Type", "image/png");
-        conn.setRequestProperty("Accept", "application/json, text/plain, */*");
+        conn.setRequestProperty("Accept", "application/json");
         conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization", authToken);
 
-        avatar.setDrawingCacheEnabled(true);
-        Bitmap bitmap = avatar.getDrawingCache();
-        avatar.setDrawingCacheEnabled(false);
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+        JSONObject jsonInputString = new JSONObject();
+        jsonInputString.put("userID", userID);
+        String boundary = Long.toHexString(System.currentTimeMillis());
+        conn.setRequestProperty("Content-Type", "multipart/form-data; charset=utf-8; boundary=" + boundary);
 
-        try(OutputStream os = conn.getOutputStream()) {
-            byte[] imageBytes = byteArrayOutputStream.toByteArray();
-            os.write(imageBytes, 0, imageBytes.length);
+        try (OutputStream output = conn.getOutputStream(); PrintWriter writer = new PrintWriter(new OutputStreamWriter(output, "UTF-8"), true)) {
+            // Send JSON data.
+            writer.append("--").append(boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"json\"").append("\r\n");
+            writer.append("Content-Type: application/json; charset=UTF-8").append("\r\n");
+            writer.append("\r\n");
+            writer.append(jsonInputString.toString()).append("\r\n").flush();
+
+            // Send binary file.
+            writer.append("--").append(boundary).append("\r\n");
+            writer.append("Content-Disposition: form-data; name=\"newAvatar\"; filename=\"").append(newAvatar.getName()).append("\"").append("\r\n");
+            writer.append("Content-Type: ").append(URLConnection.guessContentTypeFromName(newAvatar.getName())).append("\r\n");
+            writer.append("Content-Transfer-Encoding: binary").append("\r\n");
+            writer.append("\r\n").flush();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Files.copy(newAvatar.toPath(), output);
+            }
+            output.flush(); // Important before continuing with writer!
+            writer.append("\r\n").flush(); // CRLF is important! It indicates end of binary boundary.
+
+            // End of multipart/form-data.
+            writer.append("--").append(boundary).append("--").append("\r\n").flush();
         }
 
         int responseCode = conn.getResponseCode();
@@ -386,20 +450,20 @@ public class EditProfile extends AppCompatActivity {
                 while ((responseLine = br.readLine()) != null) {
                     response.append(responseLine.trim());
                 }
-                // 解析响应体
-                if (conn.getContentType() != null && conn.getContentType().contains("application/json")) {
-                    JSONObject jsonResponse = new JSONObject(response.toString());
-                    String message = jsonResponse.getString("message");
-                    // 假设服务器返回了一个"message"字段，显示上传结果的消息
-                    System.out.println("Server response: " + message);
-                }
+                System.out.println(response.toString());
             }
+            return "Success";
         } else {
-            System.out.println("PNG upload failed with HTTP error code: " + responseCode);
+            try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+                StringBuilder response = new StringBuilder();
+                String responseLine = null;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                System.out.println("Error: " + response.toString());
+            }
         }
-
-        bitmap.recycle();
-        conn.disconnect();
+        return "Failed";
     }
 
     public void selectIcon(View view) {
@@ -414,8 +478,49 @@ public class EditProfile extends AppCompatActivity {
         iconView = findViewById(R.id.select_icon);
         if (requestCode == SELECT_IMAGE_REQUEST && resultCode == RESULT_OK) {
             if (data != null && data.getData() != null) {
-                iconView.setImageURI(data.getData());
-                this.iconUrl = data.getData();
+                Uri selectedImageUri = data.getData();
+                iconView.setImageURI(selectedImageUri);
+                if (selectedImageUri != null) {
+                    // 保存照片到文件中
+                    newAvatarPath = saveImageToDirectory(selectedImageUri, dir);
+                }
+            }
+        }
+    }
+
+    private String saveImageToDirectory(Uri imageUri, File directory) {
+        if (imageUri == null) return null;
+        File outputFile = null;
+        try {
+            ContentResolver contentResolver = getContentResolver();
+            // 从URI获取输入流
+            InputStream inputStream = contentResolver.openInputStream(imageUri);
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+            outputFile = new File(directory,  "avatar-" + timeStamp + ".jpg");
+            assert inputStream != null;
+            writeFile(inputStream, outputFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return outputFile.getPath();
+    }
+
+    private void writeFile(InputStream inputStream, File outputFile) throws IOException {
+        OutputStream outputStream = null;
+        try {
+            outputStream = new FileOutputStream(outputFile);
+            byte[] buffer = new byte[4 * 1024];
+            int read;
+            while ((read = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, read);
+            }
+            outputStream.flush();
+        } finally {
+            if (outputStream != null) {
+                outputStream.close();
+            }
+            if (inputStream != null) {
+                inputStream.close();
             }
         }
     }
