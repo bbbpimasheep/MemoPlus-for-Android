@@ -154,13 +154,13 @@ public class MemoContent extends AppCompatActivity{
                 }
             });
             if (this.dir != null) {this.dir.delete();}
-            Intent intent13 = new Intent(MemoContent.this, MainActivity.class);
-            startActivity(intent13);
+            // Intent intent13 = new Intent(MemoContent.this, MainActivity.class);
+            // startActivity(intent13);
+            finish();
         });
 
         save.setOnClickListener(v -> {
             saveMemo2Local();
-            // saveMemo2Cloud();
         });
 
         back2home.setOnClickListener(v -> {
@@ -358,7 +358,6 @@ public class MemoContent extends AppCompatActivity{
 
     @SuppressLint("NotifyDataSetChanged")
     private void saveMemo2Local() {
-        // adapter.notifyDataSetChanged();
         Note updated = new Note();
         updated.id = noteID;
         updated.title = title.getText().toString();
@@ -367,7 +366,7 @@ public class MemoContent extends AppCompatActivity{
         for (RecyclerViewItem item : adapter.items) {
             if (item.getType() == RecyclerViewItem.TYPE_TEXT) {
                 TextItem textItem = (TextItem) item;
-                String text = null;
+                String text;
                 if (!textItem.getText().isEmpty()) {
                     text = "{\"content\": \"" + textItem.getText() + "\"," + "\"type\": \"text\"}";
                     Log.d("files", text);
@@ -382,8 +381,7 @@ public class MemoContent extends AppCompatActivity{
             } else if (item.getType() == RecyclerViewItem.TYPE_AUDIO) {
                 AudioItem audioItem = (AudioItem) item;
                 String path = audioItem.getAudioPath();
-                String audio = "{\"content\": \"" + path + "\"," +
-                        "\"type\": \"audio\"}";
+                String audio = "{\"content\": \"" + path + "\"," + "\"type\": \"audio\"}";
                 contentJSON.add(audio);
             }
             updated.files = contentJSON;
@@ -427,13 +425,6 @@ public class MemoContent extends AppCompatActivity{
 
     public String performUploadRequest(String userID, String title, String type, int demosticId) throws IOException, JSONException {
         File parentDirectory = this.dir;
-        /*
-        if (!parentDirectory.exists() || !parentDirectory.isDirectory() || Objects.requireNonNull(parentDirectory.listFiles()).length == 0){
-            Log.d("non-exixt", String.valueOf(this.dir));
-            System.out.println("Parent directory does not exist");
-            return "";
-        }
-         */
         URI uri = null;
         try {
             uri = new URI(uri_s + "createNote");
@@ -456,7 +447,6 @@ public class MemoContent extends AppCompatActivity{
 
         // Generate uploadFileListJson dynamically based on the files in parentDirectory
         Note thisNote = noteDao.getNoteByID(demosticId);
-        // JSONArray uploadFileListJson = new JSONArray();
         List<String> files = thisNote.files;
         JSONArray uploadFileListJson = new JSONArray();
         for (String file : Objects.requireNonNull(files)) {
@@ -464,18 +454,7 @@ public class MemoContent extends AppCompatActivity{
             JSONObject fileJson = new JSONObject(file);
             uploadFileListJson.put(fileJson);
         }
-        /*
-        for (File file : Objects.requireNonNull(parentDirectory.listFiles())) {
-            JSONObject fileJson = new JSONObject();
-            fileJson.put("content", "./userData/" + file.getName());
-            if (file.getName().endsWith(".jpg")) {
-                fileJson.put("type", "image");
-            } else {
-                fileJson.put("type", "audio");
-            }
-            uploadFileListJson.put(fileJson);
-        }
-         */
+
         jsonInputString.put("uploadFileListJson", uploadFileListJson);
 
         String boundary = Long.toHexString(System.currentTimeMillis());
@@ -741,6 +720,7 @@ public class MemoContent extends AppCompatActivity{
         } catch (IOException e) {
             e.printStackTrace();
         }
+        assert outputFile != null;
         return outputFile.getPath();
     }
 
@@ -784,23 +764,6 @@ public class MemoContent extends AppCompatActivity{
             }
         }
     }
-
-    private void deleteMemo() {
-        executorService.submit(() -> {
-            noteDao.deleteById(noteID);
-        });
-    }
-
-    private File createImageFile(String photoDirectory) throws IOException {
-        Log.d("image", "filepath");
-        // 创建图片文件名
-        @SuppressLint("SimpleDateFormat")
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String path = photoDirectory + "/" + title.getText().toString() + "-" + timeStamp + ".jpg";
-        Log.d("photo", path);
-        return new File(path);
-    }
-
 
     public abstract static class RecyclerViewItem {
         public static final int TYPE_TEXT = 1;

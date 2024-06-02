@@ -20,6 +20,7 @@ import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -53,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
     RecyclerView memoRecyclerView;
     MemoAdapter adapter;
     TextView bottomSum;
+    EditText searchBar;
     ImageButton homeButton, addMemo, aiButton, searchButton;
     boolean login = false; // false
     List<MemoItem> MemoList;
@@ -76,6 +78,7 @@ public class MainActivity extends AppCompatActivity {
         this.homeButton = findViewById(R.id.home_button);
         this.addMemo = findViewById(R.id.add_memo_button);
         this.aiButton = findViewById(R.id.ai_button);
+        this.searchBar = findViewById(R.id.search_bar);
         this.searchButton = findViewById(R.id.search_button);
         this.MemoList = new ArrayList<>();
 
@@ -96,7 +99,11 @@ public class MainActivity extends AppCompatActivity {
         });
 
         searchButton.setOnClickListener(v -> {
-
+            if (login && !searchBar.getText().toString().equals("")) {
+                Intent intent = new Intent(MainActivity.this, Search.class);
+                intent.putExtra("KEY", searchBar.getText().toString());
+                startActivity(intent);
+            }
         });
 
         addMemo.setOnClickListener(v -> {
@@ -209,9 +216,9 @@ public class MainActivity extends AppCompatActivity {
                 throw new RuntimeException(e);
             }
             if (abs.length() > 36) {
-                abs = abs.substring(0,36);
+                abs = abs.substring(0,36) + "...";
             }
-            item.memo_abstract = abs + "...";
+            item.memo_abstract = abs;
             item.type = note.type;
             Log.d("type", note.type);
             item.labelNoteID = note.id;
@@ -239,7 +246,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    class MemoAdapter extends RecyclerView.Adapter<MemoAdapter.MemoViewHolder> {
+    static class MemoAdapter extends RecyclerView.Adapter<MemoAdapter.MemoViewHolder> {
         LayoutInflater inflater;
         List<MemoItem> MemoList;
         Context context;
@@ -281,7 +288,7 @@ public class MainActivity extends AppCompatActivity {
             return MemoList.size();
         }
 
-        class MemoViewHolder extends RecyclerView.ViewHolder {
+        static class MemoViewHolder extends RecyclerView.ViewHolder {
             TextView titleView;
             TextView abstractView;
             TextView timeView;

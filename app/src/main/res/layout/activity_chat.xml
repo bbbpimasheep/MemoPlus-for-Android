@@ -55,31 +55,35 @@
         android:id="@+id/messageInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_below="@id/big_title"
+        android:layout_alignParentBottom="true"
         android:layout_centerInParent="true"
+        android:layout_marginTop="8dp"
+        android:background="@color/floral_white"
         android:orientation="horizontal"
-        android:padding="8dp"
-        android:background="@color/floral_white">
+        android:padding="8dp">
 
         <ImageButton
             android:id="@+id/ic_glm"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:backgroundTint="@color/floral_white"
+            android:contentDescription="@string/description_home"
             android:gravity="top|left"
             android:paddingLeft="12dp"
             android:paddingRight="12dp"
-            android:layout_marginStart="12dp"
             android:src="@drawable/ic_glm"
-            android:contentDescription="@string/description_home"
-            android:backgroundTint="@color/floral_white"
             tools:ignore="RtlHardcoded" />
 
         <TextView
             android:id="@+id/messageText"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_gravity="center"
             android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"/>
+            android:layout_marginEnd="8dp"
+            android:scrollbars="vertical" />
 
     </LinearLayout>
 </RelativeLayout>
