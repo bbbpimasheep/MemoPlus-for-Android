@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/floral_white">
@@ -37,6 +38,19 @@
 
     </RelativeLayout>
 
+    <TextView
+        android:id="@+id/big_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="ChatGLM Cares"
+        android:gravity="center_vertical"
+        android:paddingStart="12dp"
+        android:layout_marginTop="84dp"
+        android:layout_marginStart="16dp"
+        android:textSize="32sp"
+        android:textColor="@color/tag"
+        android:textStyle="italic|bold"/>
+
     <LinearLayout
         android:id="@+id/messageInputLayout"
         android:layout_width="match_parent"
@@ -44,12 +58,28 @@
         android:layout_centerInParent="true"
         android:orientation="horizontal"
         android:padding="8dp"
-        android:background="@color/antique_white">
+        android:background="@color/floral_white">
+
+        <ImageButton
+            android:id="@+id/ic_glm"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="top|left"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:layout_marginStart="12dp"
+            android:src="@drawable/ic_glm"
+            android:contentDescription="@string/description_home"
+            android:backgroundTint="@color/floral_white"
+            tools:ignore="RtlHardcoded" />
 
         <TextView
             android:id="@+id/messageText"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"/>
 
     </LinearLayout>
 </RelativeLayout>
