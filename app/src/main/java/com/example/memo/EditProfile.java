@@ -74,24 +74,11 @@ public class EditProfile extends AppCompatActivity {
         userDao = db.userDao();
 
         executorService = Executors.newFixedThreadPool(1);
-        /*
-        Intent intent = getIntent();
-        userName = intent.getStringExtra("name");
-        editName.setText(userName);
-        userID = intent.getStringExtra("ID");
-        IDView.setText(userID);
-        password = intent.getStringExtra("password");
-        oldPwd.setText(password);
-        signature = intent.getStringExtra("signature");
-        editSign.setText(signature);
-         */
 
         initializeInfo();
 
         cancelButton.setOnClickListener(v -> {
             Log.d(LOG_TAG, "Cancel button clicked!");
-            // Intent intent = new Intent(EditProfile.this, PersonalProfile.class);
-            // startActivity(intent);
             finish();
         });
 
