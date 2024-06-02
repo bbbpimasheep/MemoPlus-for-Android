@@ -38,21 +38,18 @@ public class Chat extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
 
+        Intent intent = getIntent();
+        userID = intent.getStringExtra("ID");
+        Log.d("IDID", userID);
+
         back2Home = findViewById(R.id.back_button);
         messageTextView = findViewById(R.id.messageText);
 
         messageText = "正在为您准备个性推荐……";
         messageTextView.setText(messageText);
 
-        Intent intent = getIntent();
-        userID = intent.getStringExtra("ID");
-
-        back2Home.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(Chat.this, MainActivity.class);
-                startActivity(intent);
-            }
+        back2Home.setOnClickListener(v -> {
+            finish();
         });
 
         executorService = Executors.newFixedThreadPool(1);

@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
     RecyclerView memoRecyclerView;
     MemoAdapter adapter;
     TextView bottomSum;
-    ImageButton homeButton, addMemo, aiButton;
+    ImageButton homeButton, addMemo, aiButton, searchButton;
     boolean login = false; // false
     List<MemoItem> MemoList;
     static ExecutorService executorService;
@@ -76,13 +76,14 @@ public class MainActivity extends AppCompatActivity {
         this.homeButton = findViewById(R.id.home_button);
         this.addMemo = findViewById(R.id.add_memo_button);
         this.aiButton = findViewById(R.id.ai_button);
+        this.searchButton = findViewById(R.id.search_button);
         this.MemoList = new ArrayList<>();
 
-        // new Thread(() -> {noteDao.deleteAllNotes();}).start();
         executorService = Executors.newFixedThreadPool(1);
 
         aiButton.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, Chat.class);;
+            Intent intent = new Intent(MainActivity.this, Chat.class);
+            intent.putExtra("ID", userID);
             startActivity(intent);
         });
 
@@ -92,6 +93,10 @@ public class MainActivity extends AppCompatActivity {
             if(login) intent = new Intent(MainActivity.this, PersonalProfile.class);
             else intent = new Intent(MainActivity.this, Login.class);
             startActivityForResult(intent, REQUEST_CODE);
+        });
+
+        searchButton.setOnClickListener(v -> {
+
         });
 
         addMemo.setOnClickListener(v -> {
@@ -107,8 +112,6 @@ public class MainActivity extends AppCompatActivity {
                     newNote.last_edit = "Newly created at " + timeStamp;
                     newNote.last_save = "Local";
                     newNote.files = new ArrayList<>();
-                    // String content = "{\"content\": \"Type here.\"," + "\"type\": \"text\"}";
-                    // newNote.files.add(content);
                     noteDao.insertNote(newNote);
                     Handler handler = new Handler(Looper.getMainLooper());
                     handler.post(() -> {

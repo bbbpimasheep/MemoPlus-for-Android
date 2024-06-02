@@ -160,7 +160,7 @@ public class MemoContent extends AppCompatActivity{
 
         save.setOnClickListener(v -> {
             saveMemo2Local();
-            saveMemo2Cloud();
+            // saveMemo2Cloud();
         });
 
         back2home.setOnClickListener(v -> {
@@ -370,6 +370,7 @@ public class MemoContent extends AppCompatActivity{
                 String text = null;
                 if (!textItem.getText().isEmpty()) {
                     text = "{\"content\": \"" + textItem.getText() + "\"," + "\"type\": \"text\"}";
+                    Log.d("files", text);
                     contentJSON.add(text);
                 }
             } else if (item.getType() == RecyclerViewItem.TYPE_IMAGE) {
@@ -394,11 +395,12 @@ public class MemoContent extends AppCompatActivity{
         executorService.submit(() -> {
             // 执行后台任务
             noteDao.updateNote(updated);
+            saveMemo2Cloud();
         });
     }
 
     private void saveMemo2Cloud() {
-        executorService.submit(() -> {
+        // executorService.submit(() -> {
             sendPOST_uploadNote(userID, title.getText().toString(), type, noteID, new OnHttpCallback() {
                 @Override
                 public void onSuccess(String feedBack) {
@@ -409,7 +411,7 @@ public class MemoContent extends AppCompatActivity{
                     e.printStackTrace();
                 }
             });
-        });
+        // });
     }
 
     private void sendPOST_uploadNote(String userID, String title, String type, int demosticId, OnHttpCallback callback) {
@@ -425,10 +427,13 @@ public class MemoContent extends AppCompatActivity{
 
     public String performUploadRequest(String userID, String title, String type, int demosticId) throws IOException, JSONException {
         File parentDirectory = this.dir;
+        /*
         if (!parentDirectory.exists() || !parentDirectory.isDirectory() || Objects.requireNonNull(parentDirectory.listFiles()).length == 0){
+            Log.d("non-exixt", String.valueOf(this.dir));
             System.out.println("Parent directory does not exist");
             return "";
         }
+         */
         URI uri = null;
         try {
             uri = new URI(uri_s + "createNote");
@@ -450,7 +455,16 @@ public class MemoContent extends AppCompatActivity{
         jsonInputString.put("demosticId", demosticId);
 
         // Generate uploadFileListJson dynamically based on the files in parentDirectory
+        Note thisNote = noteDao.getNoteByID(demosticId);
+        // JSONArray uploadFileListJson = new JSONArray();
+        List<String> files = thisNote.files;
         JSONArray uploadFileListJson = new JSONArray();
+        for (String file : Objects.requireNonNull(files)) {
+            Log.d("files", file);
+            JSONObject fileJson = new JSONObject(file);
+            uploadFileListJson.put(fileJson);
+        }
+        /*
         for (File file : Objects.requireNonNull(parentDirectory.listFiles())) {
             JSONObject fileJson = new JSONObject();
             fileJson.put("content", "./userData/" + file.getName());
@@ -461,6 +475,7 @@ public class MemoContent extends AppCompatActivity{
             }
             uploadFileListJson.put(fileJson);
         }
+         */
         jsonInputString.put("uploadFileListJson", uploadFileListJson);
 
         String boundary = Long.toHexString(System.currentTimeMillis());
@@ -1047,7 +1062,7 @@ public class MemoContent extends AppCompatActivity{
     protected void onPause() {
         super.onPause();
         saveMemo2Local();
-        saveMemo2Cloud();
+        // saveMemo2Cloud();
     }
 
     protected void onStop() {
