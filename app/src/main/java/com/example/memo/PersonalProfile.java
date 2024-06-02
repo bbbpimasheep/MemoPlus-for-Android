@@ -41,6 +41,7 @@ import java.util.concurrent.Executors;
 
 public class PersonalProfile extends AppCompatActivity {
     private static AppDatabase db;
+    private UserDao userDao;
     ImageButton backButton, editProfile;
     TextView nameView, IDView, signView;
     String password, avatarPath = "NoPath";
@@ -62,8 +63,9 @@ public class PersonalProfile extends AppCompatActivity {
         iconView = findViewById(R.id.icon);
 
         db = MemoPlus.getInstance().getAppDatabase();
+        userDao = db.userDao();
 
-        this.dir = PersonalProfile.this.getFilesDir();
+        dir = PersonalProfile.this.getFilesDir();
         if (!dir.exists()) {
             // 创建文件夹
             boolean isDirCreated = dir.mkdir();
@@ -99,14 +101,20 @@ public class PersonalProfile extends AppCompatActivity {
         executorService.submit(() -> {
             User user = db.userDao().getAllUsers().get(0);
             authToken = user.token;
-            if (!Objects.equals(user.avatar, "Null")) {
-                downloadIcon(user.userID);
-            }
-            Handler handler = new Handler(Looper.getMainLooper());
-            handler.post(() -> {
+            Handler handler1 = new Handler(Looper.getMainLooper());
+            handler1.post(() -> {
                 nameView.setText(user.username);
                 IDView.setText(user.userID);
                 signView.setText(user.signature);
+            });
+            Log.d("avatar", user.avatar);
+            if (Objects.equals(user.avatar, "Aru")) {
+                downloadIcon(user.userID);
+            } else {
+                avatarPath = user.avatar;
+            }
+            Handler handler2 = new Handler(Looper.getMainLooper());
+            handler2.post(() -> {
                 if (!avatarPath.equals("NoPath")) {
                     bindIcon();
                 }
@@ -119,6 +127,9 @@ public class PersonalProfile extends AppCompatActivity {
             @Override
             public void onSuccess(String feedBack) {
                 avatarPath = feedBack;
+                User syujin = userDao.getAllUsers().get(0);
+                syujin.avatar = avatarPath;
+                userDao.updateUser(syujin);
             }
             @Override
             public void onFailure(Exception e) {e.printStackTrace();}

@@ -95,34 +95,35 @@ public class MainActivity extends AppCompatActivity {
         });
 
         addMemo.setOnClickListener(v -> {
-            ExecutorService localExeService = Executors.newFixedThreadPool(1);
-            localExeService.submit(() -> {
-                Note newNote = new Note();
-                maxID += 1;
-                newNote.title = "New Title " + maxID;
-                newNote.id = maxID;
-                Log.d("title-id-new", String.valueOf(maxID));
-                newNote.type = "Default Type";
-                String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
-                newNote.last_edit = "Newly created at " + timeStamp;
-                newNote.last_save = "Local";
-                newNote.files = new ArrayList<>();
-                // String content = "{\"content\": \"Type here.\"," + "\"type\": \"text\"}";
-                // newNote.files.add(content);
-                noteDao.insertNote(newNote);
-                Handler handler = new Handler(Looper.getMainLooper());
-                handler.post(() -> {
-                    MemoItem item = new MemoItem();
-                    item.title = newNote.title;
-                    item.memo_abstract = "What's going on?";
-                    item.edit_time = newNote.last_edit;
-                    item.labelNoteID = newNote.id;
-                    item.type = newNote.type;
-                    MemoList.add(item);
-                    adapter.notifyDataSetChanged();
-                    bottomSum.setText("Total: " + MemoList.size() + " memos");
+            if (login) {
+                executorService.submit(() -> {
+                    Note newNote = new Note();
+                    maxID += 1;
+                    newNote.title = "New Title " + maxID;
+                    newNote.id = maxID;
+                    Log.d("title-id-new", String.valueOf(maxID));
+                    newNote.type = "Default Type";
+                    String timeStamp = new SimpleDateFormat("MM.dd HH:mm").format(new Date());
+                    newNote.last_edit = "Newly created at " + timeStamp;
+                    newNote.last_save = "Local";
+                    newNote.files = new ArrayList<>();
+                    // String content = "{\"content\": \"Type here.\"," + "\"type\": \"text\"}";
+                    // newNote.files.add(content);
+                    noteDao.insertNote(newNote);
+                    Handler handler = new Handler(Looper.getMainLooper());
+                    handler.post(() -> {
+                        MemoItem item = new MemoItem();
+                        item.title = newNote.title;
+                        item.memo_abstract = "What's going on?";
+                        item.edit_time = newNote.last_edit;
+                        item.labelNoteID = newNote.id;
+                        item.type = newNote.type;
+                        MemoList.add(item);
+                        adapter.notifyDataSetChanged();
+                        bottomSum.setText("Total: " + MemoList.size() + " memos");
+                    });
                 });
-            });
+            }
         });
     }
 
