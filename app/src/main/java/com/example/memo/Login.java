@@ -85,7 +85,7 @@ public class Login extends AppCompatActivity{
                     public void onSuccess(String feedBack) {
                         logined = true;
                         authtoken = feedBack;
-                        if (!Objects.equals(authtoken, "No Token")) {
+                        if (!Objects.equals(authtoken, "Error")) {
                             updateUser();
                             updateNoteDB();
                             logined = true;
@@ -162,7 +162,7 @@ public class Login extends AppCompatActivity{
             uri = new URI(uri_s + "login");
         } catch (URISyntaxException e) {
             e.printStackTrace();
-            return "No token";
+            return "Error";
         }
         URL url = uri.toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -220,6 +220,6 @@ public class Login extends AppCompatActivity{
                 System.out.println("Error: " + response.toString());
             }
         }
-        return "No Token";
+        return "Error";
     }
 }
