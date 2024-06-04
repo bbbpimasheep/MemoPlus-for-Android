@@ -23,7 +23,7 @@
     <string name="check_password_hint">*New password</string>
     <string name="tag_signature">Signature</string>
     <string name="edit_signature">苟利国家生死以，岂因祸福避趋之</string>
-    <string name="hint_edit_signature">*no more than 100 characters</string>
+    <string name="hint_edit_signature">*no more than 20 characters</string>
     <string name="hint_search">Search</string>
     <string name="default_type">Experiment</string>
     <string name="set_id_hint">*your email address</string>

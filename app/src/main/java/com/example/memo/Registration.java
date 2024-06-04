@@ -20,6 +20,7 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -32,6 +33,7 @@ import java.net.URL;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -73,20 +75,23 @@ public class Registration extends AppCompatActivity {
                     @SuppressLint("SetTextI18n")
                     @Override
                     public void onSuccess(String feedBack) {
-                        Handler handler = new Handler(Looper.getMainLooper());
-                        handler.post(() -> {
-                            String userID = feedBack;
-                            showID.setText("User ID: " + userID + " (Please remember it)");
-                            Log.d("id", userID);
-                        });
+                        String userID = feedBack;
+                        if (!Objects.equals(userID, "Error")) {
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            handler.post(() -> {
+                                showID.setText("User ID: " + userID + "\n Remember it! You won't see this again.");
+                                Toast.makeText(Registration.this, "Registration success.", Toast.LENGTH_SHORT).show();
+                            });
+                        } else {
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            handler.post(() -> {Toast.makeText(Registration.this, "Registration failed. Please retry.", Toast.LENGTH_SHORT).show();});
+                        }
                     }
                     @Override
                     public void onFailure(Exception e) {
                         e.printStackTrace();
                         Handler handler = new Handler(Looper.getMainLooper());
-                        handler.post(() -> {
-                            showID.setText("Registration Failure");
-                        });
+                        handler.post(() -> {Toast.makeText(Registration.this, "Registration failed. Please retry.", Toast.LENGTH_SHORT).show();});
                     }
                 });
             } else {
@@ -113,12 +118,10 @@ public class Registration extends AppCompatActivity {
             uri = new URI( uri_s + "register");
         } catch (URISyntaxException e) {
             e.printStackTrace();
-            return "";
+            return "Error";
         }
         URL url = uri.toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        // conn.setConnectTimeout(1000); // 1 seconds
-        // conn.setReadTimeout(10000);    // 10 seconds
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json; utf-8");
         conn.setRequestProperty("Accept", "application/json");
@@ -141,13 +144,12 @@ public class Registration extends AppCompatActivity {
                     response.append(responseLine.trim());
                 }
                 JSONObject jsonResponse = new JSONObject(response.toString());
-                userid = jsonResponse.getString("userID");
-                Log.d("id-infunc", userid);
+                return jsonResponse.getString("userID");
             }
         } else {
-            Log.d("shit", "POST request not worked");
+            System.out.println("POST request not worked");
         }
-        return userid;
+        return "Error";
     }
 
 
