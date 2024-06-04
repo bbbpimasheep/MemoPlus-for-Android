@@ -111,11 +111,11 @@ public class PersonalProfile extends AppCompatActivity {
             Handler handler2 = new Handler(Looper.getMainLooper());
             if (Objects.equals(user.avatar, "Check")) {
                 downloadIcon(user.userID);
-                handler2.postDelayed(() -> {
+                handler2.post(() -> {
                     if (!avatarPath.equals("NoPath")) {
                         bindIcon();
                     }
-                }, 1000);
+                });
             } else {
                 avatarPath = user.avatar;
                 handler2.post(() -> {
@@ -225,4 +225,13 @@ public class PersonalProfile extends AppCompatActivity {
         }
         return "NoPath";
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (executorService != null) {
+            executorService.shutdownNow();
+        }
+    }
+
 }

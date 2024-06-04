@@ -1033,10 +1033,12 @@ public class MemoContent extends AppCompatActivity{
         // saveMemo2Cloud();
     }
 
-    protected void onStop() {
-        super.onStop();
-        // 保存数据
-        // saveMemo2Local();
-        // saveMemo2Cloud();
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (executorService != null) {
+            executorService.shutdownNow();
+        }
     }
+
 }
