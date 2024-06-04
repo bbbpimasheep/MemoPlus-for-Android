@@ -76,7 +76,7 @@ public class Registration extends AppCompatActivity {
                         Handler handler = new Handler(Looper.getMainLooper());
                         handler.post(() -> {
                             String userID = feedBack;
-                            showID.setText("User ID: " + userID);
+                            showID.setText("User ID: " + userID + " (Please remember it)");
                             Log.d("id", userID);
                         });
                     }
