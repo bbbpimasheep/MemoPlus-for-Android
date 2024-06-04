@@ -7,6 +7,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -40,10 +41,6 @@ public class Chat extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
 
-        Intent intent = getIntent();
-        userID = intent.getStringExtra("ID");
-        Log.d("IDID", userID);
-
         back2Home = findViewById(R.id.back_button);
         messageTextView = findViewById(R.id.messageText);
         messageTextView.setMovementMethod(new ScrollingMovementMethod());
@@ -60,11 +57,13 @@ public class Chat extends AppCompatActivity {
         executorService = Executors.newFixedThreadPool(1);
         executorService.submit(() -> {
             try {
+                Intent intent = getIntent();
+                userID = intent.getStringExtra("ID");
                 sendPOST_return_personalized_recommendation(userID);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                runOnUiThread(() -> Toast.makeText(Chat.this, "Please log in first.", Toast.LENGTH_LONG).show());
             } catch (JSONException e) {
-                throw new RuntimeException(e);
+                runOnUiThread(() -> Toast.makeText(Chat.this, "Please log in first.", Toast.LENGTH_LONG).show());
             }
         });
     }
