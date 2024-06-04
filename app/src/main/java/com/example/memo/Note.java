@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity(tableName = "notes")
@@ -26,4 +27,8 @@ public class Note {
 
     @ColumnInfo(name = "last_save")
     public String last_save;
+
+    public Note() {
+        files = new ArrayList<>();
+    }
 }

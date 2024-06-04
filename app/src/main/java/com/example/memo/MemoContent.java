@@ -223,10 +223,10 @@ public class MemoContent extends AppCompatActivity{
                     throw new RuntimeException(e);
                 }
                 Handler handler = new Handler(Looper.getMainLooper());
-                handler.postDelayed(this::drawScreen, 1000);
+                handler.post(this::drawScreen);
             } else {
                 Handler handler = new Handler(Looper.getMainLooper());
-                handler.postDelayed(this::drawScreen, 200);
+                handler.post(this::drawScreen);
             }
         });
     }
