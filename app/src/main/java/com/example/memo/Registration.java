@@ -79,8 +79,8 @@ public class Registration extends AppCompatActivity {
                         if (!Objects.equals(userID, "Error")) {
                             Handler handler = new Handler(Looper.getMainLooper());
                             handler.post(() -> {
-                                showID.setText("User ID: " + userID + "\n Remember it! You won't see this again.");
-                                Toast.makeText(Registration.this, "Registration success.", Toast.LENGTH_SHORT).show();
+                                showID.setText("User ID: " + userID);
+                                Toast.makeText(Registration.this, "Registration success.\nRemember your userID!", Toast.LENGTH_SHORT).show();
                             });
                         } else {
                             Handler handler = new Handler(Looper.getMainLooper());
