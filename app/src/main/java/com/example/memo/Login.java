@@ -32,6 +32,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -84,12 +85,16 @@ public class Login extends AppCompatActivity{
                     public void onSuccess(String feedBack) {
                         logined = true;
                         authtoken = feedBack;
-                        updateUser();
-                        updateNoteDB();
-                        Log.d("login", "win");
-                        logined = true;
-                        Handler handler = new Handler(Looper.getMainLooper());
-                        handler.post(() -> {Toast.makeText(Login.this, "Login success", Toast.LENGTH_SHORT).show();});
+                        if (!Objects.equals(authtoken, "No Token")) {
+                            updateUser();
+                            updateNoteDB();
+                            logined = true;
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            handler.post(() -> {Toast.makeText(Login.this, "Login success", Toast.LENGTH_SHORT).show();});
+                        } else {
+                            Handler handler = new Handler(Looper.getMainLooper());
+                            handler.post(() -> {Toast.makeText(Login.this, "Login failed. Please retry.", Toast.LENGTH_SHORT).show();});
+                        }
                     }
                     @Override
                     public void onFailure(Exception e) {
@@ -103,47 +108,43 @@ public class Login extends AppCompatActivity{
     }
 
     private void updateNoteDB() {
-        executorService.submit(() -> {
-            noteDao.deleteAllNotes();
-            Log.d("note-list", String.valueOf(noteList));
-            for (int i = 0; i < noteList.length(); i++) {
-                JSONObject noteC;
-                try {noteC = noteList.getJSONObject(i);}
-                catch (JSONException e) {throw new RuntimeException(e);}
-                Note noteL = new Note();
-                noteL.last_save = "Cloud";
-                try {
-                    noteL.id = noteC.getInt("demosticId");
-                    noteL.title = noteC.getString("title");
-                    noteL.type = noteC.getString("type");
-                    JSONArray fileJson = noteC.getJSONArray("file");
+        noteDao.deleteAllNotes();
+        Log.d("note-list", String.valueOf(noteList));
+        for (int i = 0; i < noteList.length(); i++) {
+            JSONObject noteC;
+            try {noteC = noteList.getJSONObject(i);}
+            catch (JSONException e) {throw new RuntimeException(e);}
+            Note noteL = new Note();
+            noteL.last_save = "Cloud";
+            try {
+                noteL.id = noteC.getInt("demosticId");
+                noteL.title = noteC.getString("title");
+                noteL.type = noteC.getString("type");
+                JSONArray fileJson = noteC.getJSONArray("file");
 
-                    List<String> fileList = new ArrayList<>();
-                    for(int j = 0; j < fileJson.length(); j++) {
-                        fileList.add(fileJson.getJSONObject(j).toString());
-                    }
-                    noteL.files = fileList;
-                    noteL.last_edit = "";
-                    noteDao.insertNote(noteL);
-                } catch (JSONException e) {
-                    throw new RuntimeException(e);
+                List<String> fileList = new ArrayList<>();
+                for(int j = 0; j < fileJson.length(); j++) {
+                    fileList.add(fileJson.getJSONObject(j).toString());
                 }
+                noteL.files = fileList;
+                noteL.last_edit = "";
+                noteDao.insertNote(noteL);
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
             }
-        });
+        }
     }
 
     private void updateUser() {
-        executorService.submit(() -> {
-            userDao.deleteAllUsers();
-            User syujin = new User();
-            syujin.userID = userID.getText().toString();
-            syujin.password = password.getText().toString();
-            syujin.token = authtoken;
-            syujin.username = username;
-            syujin.signature = signature;
-            syujin.avatar = "Null";
-            userDao.insertUser(syujin);
-        });
+        userDao.deleteAllUsers();
+        User syujin = new User();
+        syujin.userID = userID.getText().toString();
+        syujin.password = password.getText().toString();
+        syujin.token = authtoken;
+        syujin.username = username;
+        syujin.signature = signature;
+        syujin.avatar = "Null";
+        userDao.insertUser(syujin);
     }
 
     public void sendPOST_login(String userID, String password, OnHttpCallback callback) {
@@ -207,10 +208,7 @@ public class Login extends AppCompatActivity{
                 else {_noteList = jsonResponse.getJSONArray("noteList");}
                 this.noteList = _noteList;
 
-                System.out.println("Note List: " + _noteList);
-                System.out.println("Token: " + _authToken);
-                System.out.println("Username: " + _username);
-                System.out.println("Personal Signature: " + personalSignature);
+                return _authToken;
             }
         } else {
             try(BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
@@ -222,6 +220,6 @@ public class Login extends AppCompatActivity{
                 System.out.println("Error: " + response.toString());
             }
         }
-        return _authToken;
+        return "No Token";
     }
 }

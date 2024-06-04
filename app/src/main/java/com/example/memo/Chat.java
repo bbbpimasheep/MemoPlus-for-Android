@@ -52,6 +52,8 @@ public class Chat extends AppCompatActivity {
         messageTextView.setText(messageText);
 
         back2Home.setOnClickListener(v -> {
+            Intent intent1 = new Intent(Chat.this, MainActivity.class);
+            startActivity(intent1);
             finish();
         });
 
