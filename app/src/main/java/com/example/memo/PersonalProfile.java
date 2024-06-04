@@ -108,17 +108,22 @@ public class PersonalProfile extends AppCompatActivity {
                 signView.setText(user.signature);
             });
             Log.d("avatar", user.avatar);
-            if (Objects.equals(user.avatar, "Aru")) {
+            Handler handler2 = new Handler(Looper.getMainLooper());
+            if (Objects.equals(user.avatar, "Check")) {
                 downloadIcon(user.userID);
+                handler2.postDelayed(() -> {
+                    if (!avatarPath.equals("NoPath")) {
+                        bindIcon();
+                    }
+                }, 1000);
             } else {
                 avatarPath = user.avatar;
+                handler2.post(() -> {
+                    if (!avatarPath.equals("NoPath")) {
+                        bindIcon();
+                    }
+                });
             }
-            Handler handler2 = new Handler(Looper.getMainLooper());
-            handler2.post(() -> {
-                if (!avatarPath.equals("NoPath")) {
-                    bindIcon();
-                }
-            });
         });
     }
 
@@ -163,7 +168,7 @@ public class PersonalProfile extends AppCompatActivity {
             uri = new URI(uri_s + "getAvatar");
         } catch (URISyntaxException e) {
             e.printStackTrace();
-            return "NoPAth";
+            return "NoPath";
         }
         URL url = uri.toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();

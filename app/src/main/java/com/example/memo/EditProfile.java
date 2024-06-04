@@ -177,7 +177,7 @@ public class EditProfile extends AppCompatActivity {
                         public void onSuccess(String feedBack) {
                             if (Objects.equals(feedBack, "Success")) {
                                 User syujin = userDao.getAllUsers().get(0);
-                                syujin.avatar = "Aru";
+                                syujin.avatar = "Check";
                                 userDao.updateUser(syujin);
                                 Handler handler = new Handler(Looper.getMainLooper());
                                 handler.post(() -> {Toast.makeText(EditProfile.this, "OK", Toast.LENGTH_SHORT).show();});

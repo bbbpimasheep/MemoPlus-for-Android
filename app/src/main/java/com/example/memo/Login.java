@@ -143,7 +143,7 @@ public class Login extends AppCompatActivity{
         syujin.token = authtoken;
         syujin.username = username;
         syujin.signature = signature;
-        syujin.avatar = "Null";
+        syujin.avatar = "Check";
         userDao.insertUser(syujin);
     }
 

@@ -222,33 +222,38 @@ public class MemoContent extends AppCompatActivity{
                 } catch (JSONException e) {
                     throw new RuntimeException(e);
                 }
+                Handler handler = new Handler(Looper.getMainLooper());
+                handler.postDelayed(this::drawScreen, 1000);
+            } else {
+                Handler handler = new Handler(Looper.getMainLooper());
+                handler.postDelayed(this::drawScreen, 200);
             }
-            Handler handler = new Handler(Looper.getMainLooper());
-            handler.post(() -> {
-                List<String> files = note.files;
-                adapter.items.clear();
-                for(String file: files) {
-                    try {
-                        if (file != null && !file.isEmpty()){
-                            JSONObject fileJSON = new JSONObject(file);
-                            String typeName = fileJSON.getString("type");
-                            Log.d("type-text", file);
-                            if(typeName.equals("text")) {
-                                addItem(new TextItem(fileJSON.getString("content")));
-                            }else if(typeName.equals("image")){
-                                addItem(new ImageItem(fileJSON.getString("content")));
-                            }else if(typeName.equals("audio")){
-                                addItem(new AudioItem(fileJSON.getString("content")));
-                            }
-                        }
-                    } catch (JSONException e) {
-                        throw new RuntimeException(e);
+        });
+    }
+
+    private void drawScreen() {
+        List<String> files = note.files;
+        adapter.items.clear();
+        for(String file: files) {
+            try {
+                if (file != null && !file.isEmpty()){
+                    JSONObject fileJSON = new JSONObject(file);
+                    String typeName = fileJSON.getString("type");
+                    Log.d("type-text", file);
+                    if(typeName.equals("text")) {
+                        addItem(new TextItem(fileJSON.getString("content")));
+                    }else if(typeName.equals("image")){
+                        addItem(new ImageItem(fileJSON.getString("content")));
+                    }else if(typeName.equals("audio")){
+                        addItem(new AudioItem(fileJSON.getString("content")));
                     }
                 }
-                addItem(new TextItem(""));
-                recyclerView.setAdapter(adapter);
-            });
-        });
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        addItem(new TextItem(""));
+        recyclerView.setAdapter(adapter);
     }
 
     private void fetchFromCLoud() throws JSONException {

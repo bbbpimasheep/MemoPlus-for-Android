@@ -141,7 +141,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (login) {
+        //if (login) {
             executorService.submit(() -> {
                 List<User> users = userDao.getAllUsers();
                 if (users != null) {
@@ -150,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
                     authToken = user.userID;
                     userID = user.userID;
                 }
-                //if (login) {
+                if (login) {
                     List<Note> notes = noteDao.getAllNotes();
                     if (notes.isEmpty()) {
                         Log.d("notes", "files list is empty");
@@ -163,9 +163,9 @@ public class MainActivity extends AppCompatActivity {
                             bottomSum.setText("Total: " + MemoList.size() + " memos");
                         });
                     }
-                //}
+                }
             });
-        }
+        //}
     }
 
     @SuppressLint("NotifyDataSetChanged")
