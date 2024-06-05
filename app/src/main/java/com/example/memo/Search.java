@@ -77,11 +77,26 @@ public class Search extends AppCompatActivity {
             for(Note note : allNotes) {
                 if (note.title.contains(keyword) || note.type.contains(keyword)) {
                     thatFits.add(note);
+                } else {
+                    List<String> files = note.files;
+                    for (String file : files) {
+                        try {
+                            JSONObject fileJSON = new JSONObject(file);
+                            String type = fileJSON.getString("type");
+                            if (type.equals("text")) {
+                                String content = fileJSON.getString("content");
+                                if (content.contains(keyword)) {
+                                    thatFits.add(note);
+                                }
+                            }
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
                 }
             }
             Handler handler = new Handler(Looper.getMainLooper());
             handler.post(() -> {
-
                 ResList.clear();
                 for(Note OKnote : thatFits) {
                     MemoItem item = new MemoItem();

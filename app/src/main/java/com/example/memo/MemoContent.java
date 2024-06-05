@@ -154,8 +154,6 @@ public class MemoContent extends AppCompatActivity{
                 }
             });
             if (this.dir != null) {this.dir.delete();}
-            // Intent intent13 = new Intent(MemoContent.this, MainActivity.class);
-            // startActivity(intent13);
             finish();
         });
 

@@ -48,13 +48,13 @@
         <TextView
             android:id="@+id/show_tag_bar"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="64dp"
             android:layout_marginTop="16dp"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
-            android:textSize="24sp"
+            android:textSize="36sp"
             android:textStyle="bold|italic"
-            android:text="Tag: "
+            android:text="Tags: "
             android:gravity="center_vertical"
             android:background="@color/floral_white"/>
 
@@ -64,37 +64,6 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:layout_margin="16dp"/>
-
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:orientation="horizontal"
-            android:background="@color/floral_white">
-
-            <EditText
-                android:id="@+id/input_tag_bar"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_marginStart="16dp"
-                android:layout_marginEnd="64dp"
-                android:textSize="20sp"
-                android:hint="@string/add_tag"
-                android:background="@color/floral_white"/>
-
-            <ImageButton
-                android:id="@+id/set_tag_button"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_alignParentEnd="true"
-                android:gravity="center_vertical"
-                android:paddingLeft="8dp"
-                android:paddingRight="8dp"
-                android:layout_marginEnd="8dp"
-                android:src="@drawable/ic_finish"
-                android:contextClickable="true"
-                app:backgroundTint="@color/floral_white"/>
-
-        </RelativeLayout>
 
         <RelativeLayout
             android:layout_width="match_parent"

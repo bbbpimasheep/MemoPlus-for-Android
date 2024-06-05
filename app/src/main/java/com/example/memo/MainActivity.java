@@ -100,9 +100,14 @@ public class MainActivity extends AppCompatActivity {
 
         searchButton.setOnClickListener(v -> {
             if (login && !searchBar.getText().toString().equals("")) {
-                Intent intent = new Intent(MainActivity.this, Search.class);
-                intent.putExtra("KEY", searchBar.getText().toString());
-                startActivity(intent);
+                if (searchBar.getText().toString().equals(":Tags")) {
+                    Intent intent = new Intent(MainActivity.this, SearchTag.class);
+                    startActivity(intent);
+                } else {
+                    Intent intent = new Intent(MainActivity.this, Search.class);
+                    intent.putExtra("KEY", searchBar.getText().toString());
+                    startActivity(intent);
+                }
             }
         });
 
