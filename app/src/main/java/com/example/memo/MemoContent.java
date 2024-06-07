@@ -220,12 +220,9 @@ public class MemoContent extends AppCompatActivity{
                 } catch (JSONException e) {
                     throw new RuntimeException(e);
                 }
-                Handler handler = new Handler(Looper.getMainLooper());
-                handler.post(this::drawScreen);
-            } else {
-                Handler handler = new Handler(Looper.getMainLooper());
-                handler.post(this::drawScreen);
             }
+            Handler handler = new Handler(Looper.getMainLooper());
+            handler.post(this::drawScreen);
         });
     }
 
@@ -401,7 +398,6 @@ public class MemoContent extends AppCompatActivity{
     }
 
     private void saveMemo2Cloud() {
-        // executorService.submit(() -> {
             sendPOST_uploadNote(userID, title.getText().toString(), type, noteID, new OnHttpCallback() {
                 @Override
                 public void onSuccess(String feedBack) {
@@ -412,7 +408,6 @@ public class MemoContent extends AppCompatActivity{
                     e.printStackTrace();
                 }
             });
-        // });
     }
 
     private void sendPOST_uploadNote(String userID, String title, String type, int demosticId, OnHttpCallback callback) {
@@ -1000,6 +995,7 @@ public class MemoContent extends AppCompatActivity{
         @Override
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
             int viewType = getItemViewType(position);
+            holder.setIsRecyclable(false);
             if (viewType == RecyclerViewItem.TYPE_TEXT) {
                 ((TextViewHolder) holder).bind((TextItem) items.get(position));
             } else if (viewType == RecyclerViewItem.TYPE_IMAGE) {
