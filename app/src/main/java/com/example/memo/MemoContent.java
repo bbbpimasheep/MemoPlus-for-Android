@@ -266,7 +266,7 @@ public class MemoContent extends AppCompatActivity{
                                 String image = "{\"content\": \"" + localPath + "\"," + "\"type\": \"image\"}";
                                 files_local.add(image);
                             } else if (type.equals("audio")) {
-                                String audio = "{\"content\": \"" + localPath + "\"," + "\"type\": \"image\"}";
+                                String audio = "{\"content\": \"" + localPath + "\"," + "\"type\": \"audio\"}";
                                 files_local.add(audio);
                             }
                         }
