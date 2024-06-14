@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
     TextView bottomSum;
     EditText searchBar;
     ImageButton homeButton, addMemo, aiButton, searchButton;
-    boolean login = false; // false
+    boolean login = false;
     List<MemoItem> MemoList;
     static ExecutorService executorService;
     int maxID = -1;
@@ -146,31 +146,29 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        //if (login) {
-            executorService.submit(() -> {
-                List<User> users = userDao.getAllUsers();
-                if (users != null) {
-                    User user = users.get(0);
-                    login = true;
-                    authToken = user.userID;
-                    userID = user.userID;
+        executorService.submit(() -> {
+            List<User> users = userDao.getAllUsers();
+            if (users != null) {
+                User user = users.get(0);
+                login = true;
+                authToken = user.userID;
+                userID = user.userID;
+            }
+            if (login) {
+                List<Note> notes = noteDao.getAllNotes();
+                if (notes.isEmpty()) {
+                    Log.d("notes", "files list is empty");
+                    initializeMain();
+                } else {
+                    Handler handler = new Handler(Looper.getMainLooper());
+                    handler.post(() -> {
+                        fetchFromLocal(notes);
+                        setAdapter();
+                        bottomSum.setText("Total: " + MemoList.size() + " memos");
+                    });
                 }
-                if (login) {
-                    List<Note> notes = noteDao.getAllNotes();
-                    if (notes.isEmpty()) {
-                        Log.d("notes", "files list is empty");
-                        initializeMain();
-                    } else {
-                        Handler handler = new Handler(Looper.getMainLooper());
-                        handler.post(() -> {
-                            fetchFromLocal(notes);
-                            setAdapter();
-                            bottomSum.setText("Total: " + MemoList.size() + " memos");
-                        });
-                    }
-                }
-            });
-        //}
+            }
+        });
     }
 
     @SuppressLint("NotifyDataSetChanged")

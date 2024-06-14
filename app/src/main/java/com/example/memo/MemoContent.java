@@ -87,7 +87,7 @@ public class MemoContent extends AppCompatActivity{
     static final int REQUEST_RECORD_AUDIO_PERMISSION = 200;
     ImageButton back2home, picture, audio, camera, recorder,
                 delete, save, settags;
-    EditText title, time;
+    EditText title;
     @SuppressLint("StaticFieldLeak")
     static MultiTypeAdapter adapter;
     List<RecyclerViewItem> items;
